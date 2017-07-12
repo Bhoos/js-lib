@@ -1,0 +1,18 @@
+{
+  "name": "@bhoos/js-playing-cards",
+  "version": "1.0.0",
+  "description": "Playing Cards library and algorithms",
+  "scripts": {
+    "build": "babel --out-dir ./lib --ignore __tests__ ./src --source-maps",
+    "prepublish": "rimraf lib && babel --out-dir ./lib --ignore __tests__ ./src",
+    "clean": "rimraf lib && mkdir lib",
+    "lint": "eslint ./src --quiet",
+    "test": "NODE_ENV=test jest"
+  },
+  "main": "src/index.js",
+  "files": [
+    "src"
+  ],
+  "author": "Ranjan Shrestha",
+  "license": "UNLICENSED"
+}
