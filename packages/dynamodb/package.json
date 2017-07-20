@@ -1,0 +1,11 @@
+{
+  "name": "js-dynamodb",
+  "version": "1.0.0",
+  "description": "Dynamodb wrapper over aws-sdk",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Ranjan Shrestha",
+  "license": "MIT"
+}
