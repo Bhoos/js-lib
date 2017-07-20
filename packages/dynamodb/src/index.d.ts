@@ -10,11 +10,11 @@ interface Key {
 };
 
 interface Model {
-  get(key:object, attributes:string):Promise<object>;
+  get(attributes:string, partitionValue, sortValue):Promise<object>;
   put(item:object):Promise<boolean>;
-  update(key:object, updateExpression:string, condition?: string, names?: object, values?:object):Promise<boolean>;
-  query(primaryKey:(string|number), sortCondition:string, attributes:string, filter?:string, names?:object, values?:object):Promise<object[]>;
-  delete(key:object):Promise<boolean>;
+  update(updateExpression:string, condition: string, names: object, values: object, partitionValue, sortValue):Promise<boolean>;
+  query(partitionValue:(string|number), sortCondition:string, attributes:string, filter?:string, names?:object, values?:object):Promise<object[]>;
+  delete(partitionValue, sortValue):Promise<boolean>;
 };
 
 module DynamoDB {

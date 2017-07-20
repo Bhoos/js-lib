@@ -18,7 +18,51 @@ const mockDynamoDB = class DynamoDB {
   }
 };
 
-mockDynamoDB.DocumentClient = jest.fn();
+let mockedDocClient = null;
+
+mockDynamoDB.DocumentClient = class DocumentClient {
+  constructor() {
+    if (mockedDocClient !== null) {
+      throw new Error('More than one DocumentClient initialization attempt');
+    }
+    mockedDocClient = this;
+
+    this.mockError = null;
+    this.lastParams = null;
+
+    this.fn = (params, callback) => {
+      this.lastParams = params;
+
+      if (this.mockError) {
+        callback(this.mockError);
+        this.mockError = null;
+      }
+
+      callback(null, this.mockData);
+      this.mockData = null;
+    };
+
+    this.get = this.fn;
+    this.put = this.fn;
+    this.update = this.fn;
+    this.delete = this.fn;
+    this.query = this.fn;
+  }
+
+  setResponse(data) {
+    this.mockError = null;
+    this.mockData = data;
+  }
+
+  setError(err) {
+    this.mockData = null;
+    this.mockError = err;
+  }
+
+  getParams() {
+    return this.lastParams;
+  }
+};
 
 const AWS = {
   config: {
@@ -28,6 +72,7 @@ const AWS = {
 };
 
 AWS.getMockedDB = () => mockedDB;
+AWS.getMockedDocClient = () => mockedDocClient;
 AWS.getCreateParams = () => mockedDB.createParams;
 
 module.exports = AWS;

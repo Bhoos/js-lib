@@ -23,7 +23,7 @@ export default function generateQuery(DB, tableName, key) {
       return hashed;
     }).join(',');
 
-    const keyCondition = `${PKEY} = ${PVALUE} ${(sortCondition ? ` AND ${sortCondition}` : '')}`;
+    const keyCondition = `${PKEY} = ${PVALUE}${(sortCondition ? ` AND ${sortCondition}` : '')}`;
 
     // The names overrides the automatically generated pounded names
     if (names) {

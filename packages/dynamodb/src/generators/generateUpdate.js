@@ -1,11 +1,19 @@
-export default function generateUpdate(DB, tableName) {
-  return (
-    key, updateExpression,
-    condition, names, values
-  ) => new Promise((resolve, reject) => {
+const invariant = require('invariant');
+
+export default function generateUpdate(DB, tableName, key) {
+  return (updateExpression, condition, names, values, primaryValue, sortValue) => {
+    const Key = {
+      [key.primary]: primaryValue,
+    };
+
+    if (key.sort) {
+      invariant(sortValue !== undefined, `Sort attribute has been defined for ${tableName} but not provided during update`);
+      Key[key.sort] = sortValue;
+    }
+
     const params = {
       TableName: tableName,
-      Key: key,
+      Key,
       UpdateExpression: updateExpression,
     };
 
@@ -27,16 +35,18 @@ export default function generateUpdate(DB, tableName) {
       }, {});
     }
 
-    DB.update(params, (err) => {
-      if (err) {
-        if (err.code === 'ConditionalCheckFailedException') {
-          return resolve(false);
+    return new Promise((resolve, reject) => {
+      DB.update(params, (err) => {
+        if (err) {
+          if (err.code === 'ConditionalCheckFailedException') {
+            return resolve(false);
+          }
+
+          return reject(err);
         }
 
-        return reject(err);
-      }
-
-      return resolve(true);
+        return resolve(true);
+      });
     });
-  });
+  };
 }
