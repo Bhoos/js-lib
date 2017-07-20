@@ -1,0 +1,22 @@
+{
+  "name": "js-dynamodb",
+  "version": "1.0.0",
+  "description": "Dynamodb wrapper over aws-sdk",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest spec.js && npm run test-live",
+    "test-live": "NODE_ENV=test AWS_DYNAMODB='http://localhost:8000' AWS_REGION='us-east-1' jest liveRun.js"
+  },
+  "author": "Ranjan Shrestha",
+  "license": "MIT",
+  "dependencies": {
+    "aws-sdk": "^2.87.0",
+    "invariant": "^2.2.2"
+  },
+  "devDependencies": {
+    "aws-db": "^1.0.2",
+    "babel-jest": "^20.0.3",
+    "babel-preset-import-export": "^1.0.2",
+    "jest": "^20.0.4"
+  }
+}
