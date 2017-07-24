@@ -1,9 +1,15 @@
 {
   "name": "@bhoos/js-dynamodb",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Dynamodb wrapper over aws-sdk",
-  "main": "index.js",
+  "main": "build/index.js",
+  "files": [
+    "build"
+  ],
   "scripts": {
+    "build": "babel --out-dir ./build --ignore __tests__ --ignore __mocks__ ./src --copy-files",
+    "clean": "rimraf build && mkdir build",
+    "prepublish": "npm run clean && npm run build",
     "test": "jest spec.js && npm run test-live",
     "test-live": "NODE_ENV=test AWS_DYNAMODB='http://localhost:8000' AWS_REGION='us-east-1' jest liveRun.js"
   },
@@ -16,8 +22,10 @@
   },
   "devDependencies": {
     "aws-db": "^1.0.2",
+    "babel-cli": "^6.24.1",
     "babel-jest": "^20.0.3",
     "babel-preset-import-export": "^1.0.2",
-    "jest": "^20.0.4"
+    "jest": "^20.0.4",
+    "rimraf": "^2.6.1"
   }
 }
