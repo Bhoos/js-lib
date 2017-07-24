@@ -9,5 +9,5 @@ lerna-debug.log
 lerna-error.log
 
 # Ignore the generated folder in any of the projects
-# ALWAYS place the generated files with `lib` folder
-lib/
+# ALWAYS place the generated files with `build` folder
+build/
