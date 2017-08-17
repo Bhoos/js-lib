@@ -1,0 +1,14 @@
+{
+  "name": "@bhoos/ec2",
+  "version": "1.0.0",
+  "description": "AWS EC2 wrapper",
+  "main": "build/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Ranjan Shrestha",
+  "license": "MIT",
+  "dependencies": {
+    "aws-sdk": "^2.100.0"
+  }
+}
