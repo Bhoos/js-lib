@@ -3,12 +3,24 @@
   "version": "1.0.0",
   "description": "AWS EC2 wrapper",
   "main": "build/index.js",
+  "files": [
+    "build"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "babel --out-dir ./build --ignore __tests__ --ignore __mocks__ ./src --copy-files",
+    "clean": "rimraf build && mkdir build",
+    "prepublish": "npm run clean && npm run build",
+    "test": "NODE_ENV=test AWS_REGION='ap-south-1' jest liveRun.js"
   },
   "author": "Ranjan Shrestha",
   "license": "MIT",
   "dependencies": {
     "aws-sdk": "^2.100.0"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-jest": "^20.0.3",
+    "jest": "^20.0.4",
+    "rimraf": "^2.6.1"
   }
 }
