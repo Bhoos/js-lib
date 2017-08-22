@@ -1,3 +1,4 @@
 {
-  "presets": ["import-export"]
+  "presets": ["import-export"],
+  "plugins": ["transform-object-rest-spread"]
 }
