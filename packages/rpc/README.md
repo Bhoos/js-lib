@@ -2,7 +2,7 @@
 A WebSocket based RPC library
 
 # Installation
-> $ npm install --save @bhoos/rpc
+> `$ npm install --save @bhoos/rpc`
 
 # Usage
 The rpc library is based on the WebSocket but doesn't stick to a specific
