@@ -1,0 +1,14 @@
+{
+  "name": "@bhoos/js-s3",
+  "version": "1.0.0",
+  "description": "A wrapper around Amazon S3",
+  "main": "build/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Ranjan Shrestha",
+  "license": "MIT",
+  "dependencies": {
+    "aws-sdk": "^2.102.0"
+  }
+}
