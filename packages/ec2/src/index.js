@@ -5,6 +5,7 @@
 import launchInstanceFactory from './launchInstance';
 import terminateInstanceFactory from './terminateInstance';
 import * as metaData from './meta-data';
+import getUserData from './user-data/getUserData';
 
 const AWS = require('aws-sdk');
 
@@ -31,10 +32,8 @@ const EC2 = new AWS.EC2();
  *                         to start
  *                          Internally it uses timeouts and a number of retries calling
  *                          `describeInstance` to determine the started state when waited.
- * @param {object[]} tags - A list of tags that would be associated with the launched
- *                          instance
- * @param {string} tags[].name - The name of the tag
- * @param {string} tags[].value - The value for the specific tag
+ * @param {object} tags -  A key value pair for the tags to be associated with the instance
+ * @param {string} userData A user data to be associated with the instance
  * @returns {Promise<instance>} The instance description with InstanceId, PrivateIpAddress, etc.
  */
 const launchInstance = launchInstanceFactory(EC2);
@@ -55,6 +54,7 @@ const defaultExport = {
   launchInstance,
   terminateInstance,
   metaData,
+  getUserData,
 };
 
 export default defaultExport;
