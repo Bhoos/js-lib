@@ -1,6 +1,6 @@
 {
   "name": "@bhoos/js-ec2",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "AWS EC2 wrapper",
   "main": "build/index.js",
   "files": [
@@ -15,7 +15,8 @@
   "author": "Ranjan Shrestha",
   "license": "MIT",
   "dependencies": {
-    "aws-sdk": "^2.100.0"
+    "aws-sdk": "^2.100.0",
+    "request": "^2.81.0"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
