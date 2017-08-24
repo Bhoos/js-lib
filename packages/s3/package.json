@@ -1,10 +1,16 @@
 {
   "name": "@bhoos/js-s3",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A wrapper around Amazon S3",
   "main": "build/index.js",
+  "files": [
+    "build"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "babel --out-dir ./build --ignore __tests__ --ignore __mocks__ ./src --copy-files",
+    "clean": "rimraf build && mkdir build",
+    "prepublish": "npm run clean && npm run build",
+    "test": ""
   },
   "author": "Ranjan Shrestha",
   "license": "MIT",
