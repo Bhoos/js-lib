@@ -1,5 +1,5 @@
 {
-  "name": "@bhoos/rpc",
+  "name": "@bhoos/js-rpc",
   "version": "1.0.1",
   "description": "RPC client via WebSocket",
   "main": "build/index.js",
