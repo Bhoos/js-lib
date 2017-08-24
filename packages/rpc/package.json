@@ -1,6 +1,6 @@
 {
   "name": "@bhoos/js-rpc",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "RPC client via WebSocket",
   "main": "build/index.js",
   "files": [
