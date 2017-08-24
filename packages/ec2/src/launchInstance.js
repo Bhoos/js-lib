@@ -1,12 +1,13 @@
 import waitForInstanceState from './_waitForInstanceState';
 
-const launchInstance = EC2 => (ami, token, instanceType = 't2.micro', wait = false, tags = null) => {
+const launchInstance = EC2 => (ami, token, instanceType = 't2.micro', wait = false, tags = null, userData = null) => {
   const params = {
     ImageId: ami,
     MinCount: 1,
     MaxCount: 1,
     ClientToken: token,
     InstanceType: instanceType,
+    UserData: userData,
   };
 
   if (tags) {
