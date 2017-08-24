@@ -68,14 +68,16 @@ export default function configureServer(WebSocketServer) {
               }
 
               // Process the arguments (specially for callbacks)
-              const args = this.processArgs(msg.args, api, ws);
+              const args = msg.args && this.processArgs(msg.args, api, ws);
 
               // Execute the method
-              Promise.resolve(api.fn.apply(null, args)).then((res) => {
-                sendResponse(msg.id, msg.name, res);
-              }).catch((err) => {
+              try {
+                Promise.resolve(api.fn.apply(null, args)).then((res) => {
+                  sendResponse(msg.id, msg.name, res);
+                });
+              } catch (err) {
                 sendError(msg.id, msg.name, err.message);
-              });
+              }
             } else {
               sendError(msg.id, msg.name, `Server can't handle message of type ${msg.type}`);
             }
