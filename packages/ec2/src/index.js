@@ -4,6 +4,7 @@
  */
 import launchInstanceFactory from './launchInstance';
 import terminateInstanceFactory from './terminateInstance';
+import * as metaData from './meta-data';
 
 const AWS = require('aws-sdk');
 
@@ -53,6 +54,7 @@ const terminateInstance = terminateInstanceFactory(EC2);
 const defaultExport = {
   launchInstance,
   terminateInstance,
+  metaData,
 };
 
 export default defaultExport;
