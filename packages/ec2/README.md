@@ -2,7 +2,7 @@
 A simple instance launcher and terminator
 
 # Installation
-> `$ npm install @bhoos/ec2`
+> `$ npm install @bhoos/js-ec2`
 
 # Usage
 ```javascript
