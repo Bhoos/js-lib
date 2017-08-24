@@ -61,6 +61,13 @@ export default function configureServer(WebSocketServer) {
                 return;
               }
 
+              // Validate the arguments (It should either be nothing or an array)
+              if (msg.args !== undefined && !Array.isArray(msg.args)) {
+                sendError(msg.id, msg.name, 'Invalid argument');
+                return;
+              }
+
+              // Process the arguments (specially for callbacks)
               const args = this.processArgs(msg.args, api, ws);
 
               // Execute the method
