@@ -97,6 +97,18 @@ function createObject(helper, client, key, id, attributes, ttl) {
 
 function bindClass(helper, client) {
   const Class = helper.Class;
+  Class.exists = id => new Promise((resolve, reject) => {
+    const key = Key(helper.getName(), id);
+    client.type(key, (err, res) => {
+      if (err) {
+        return reject(err);
+      }
+
+      // considered exist only if the type of the object stored is 'hash'
+      return resolve(res === 'hash');
+    });
+  });
+
   Class.create = async (id, attributes) => {
     const key = Key(helper.getName(), id);
     if (await exists(client, key)) {
