@@ -78,54 +78,55 @@ function createObject(helper, client, key, id, attributes, ttl) {
   return obj;
 }
 
-function createClass(helper, client) {
-  return {
-    create: async (id, attributes) => {
-      const key = Key(helper.getName(), id);
-      if (await exists(client, key)) {
-        throw new Error(`Record already exists ${key}`);
+function bindClass(helper, client) {
+  const Class = helper.Class;
+  Class.create = async (id, attributes) => {
+    const key = Key(helper.getName(), id);
+    if (await exists(client, key)) {
+      throw new Error(`Record already exists ${key}`);
+    }
+
+    const obj = createObject(helper, client, key, id, attributes, helper.ttl);
+    return new Promise((resolve, reject) => {
+      const transaction = client.multi();
+      transaction.hmset(key, attributes);
+      if (helper.ttl) {
+        transaction.pexpire(key, helper.ttl);
       }
 
-      const obj = createObject(helper, client, key, id, attributes, helper.ttl);
-      return new Promise((resolve, reject) => {
-        const transaction = client.multi();
-        transaction.hmset(key, attributes);
-        if (helper.ttl) {
-          transaction.pexpire(key, helper.ttl);
+      transaction.exec((err) => {
+        if (err) {
+          return reject(err);
         }
 
-        transaction.exec((err) => {
-          if (err) {
-            return reject(err);
-          }
-
-          return resolve(obj);
-        });
+        return resolve(obj);
       });
-    },
-
-    validate: (id) => {
-      const key = Key(helper.getName(), id);
-      const transaction = client.multi();
-      transaction.type(key);
-      transaction.pttl(key);
-      transaction.hgetall(key);
-
-      return new Promise((resolve, reject) => {
-        transaction.exec((err, res) => {
-          if (err) {
-            return reject(err);
-          }
-
-          if (res[0] !== 'hash') {
-            return reject(new Error(`${key} is ${res[0]} (Doesn't exist or is not a hash)`));
-          }
-
-          return resolve(createObject(helper, client, key, id, res[2], res[1]));
-        });
-      });
-    },
+    });
   };
+
+  Class.validate = (id) => {
+    const key = Key(helper.getName(), id);
+    const transaction = client.multi();
+    transaction.type(key);
+    transaction.pttl(key);
+    transaction.hgetall(key);
+
+    return new Promise((resolve, reject) => {
+      transaction.exec((err, res) => {
+        if (err) {
+          return reject(err);
+        }
+
+        if (res[0] !== 'hash') {
+          return reject(new Error(`${key} is ${res[0]} (Doesn't exist or is not a hash)`));
+        }
+
+        return resolve(createObject(helper, client, key, id, res[2], res[1]));
+      });
+    });
+  };
+
+  return Class;
 }
 
 
@@ -146,7 +147,7 @@ Redis.$ = (Class) => {
   return new RedisHelper(Class);
 };
 
-Redis.bind = def => new Promise((resolve) => {
+Redis.bind = (def) => {
   // First validate the classes that are being added in the definition
   const classes = Object.keys(def).map(name => Redis.$(def[name]).setName(name));
 
@@ -155,22 +156,25 @@ Redis.bind = def => new Promise((resolve) => {
   const res = {
     // Method to quit the binding (while closing application)
     quit: () => client.quit(),
+    onConnect: () => {},
+    onError: (err) => { console.error(err); },
   };
 
   // Generate all the classes
   classes.forEach((redisHelper) => {
-    res[redisHelper.getClassName()] = createClass(redisHelper, client);
+    res[redisHelper.getClassName()] = bindClass(redisHelper, client);
   });
 
   // the bind is considered complete only when the redis client is connected
   client.on('ready', () => {
-    resolve(res);
+    res.onConnect();
   });
 
   client.on('error', (err) => {
-    // TODO: check if the promise needs to be rejected here
-    console.error(err);
+    res.onError(err);
   });
-});
+
+  return res;
+};
 
 export default Redis;

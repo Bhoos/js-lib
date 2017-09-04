@@ -24,16 +24,17 @@ beforeAll(() => new Promise((resolve) => {
     console.log(data.toString());
     // Use the text from the output to make sure server has started
     if (data.toString().indexOf(`The server is now ready to accept connections on port ${PORT}`) >= 0) {
-      Redis.bind({
+      Cache = Redis.bind({
         cache: SimpleCache,
         cacheWithList: Redis.$(CacheWithList).List('list'),
         cacheWithSet: Redis.$(CacheWithSet).Set('set'),
         cacheWithSortedSet: Redis.$(CacheWithSortedSet).SortedSet('sset'),
         cacheWithAll: Redis.$(CacheWithAll).List('list').SortedSet('sset').Set('set').TTL(1000),
-      }).then((res) => {
-        Cache = res;
-        resolve(Cache);
       });
+
+      Cache.onConnect = () => {
+        resolve();
+      };
     }
   });
 }));
