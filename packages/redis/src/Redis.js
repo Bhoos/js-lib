@@ -109,6 +109,24 @@ function bindClass(helper, client) {
     });
   });
 
+  Class.get = id => new Promise((resolve, reject) => {
+    const key = Key(helper.getName(), id);
+    const transaction = client.multi();
+    transaction.type(key);
+    transaction.hgetall(key);
+    transaction.exec((err, res) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (res[0] !== 'hash') {
+        return resolve(null);
+      }
+
+      return resolve(createObject(helper, client, key, id, res[1], helper.ttl));
+    });
+  });
+
   Class.create = async (id, attributes) => {
     const key = Key(helper.getName(), id);
     if (await exists(client, key)) {

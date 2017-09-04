@@ -1,5 +1,6 @@
 import Redis from '../src';
 
+const redis = require('redis');
 const { spawn } = require('child_process');
 
 const PORT = 7777;
@@ -16,6 +17,7 @@ class CacheWithAll extends Redis {}
 
 let Cache = null;
 let server = null;
+let direct = null;
 
 beforeAll(() => new Promise((resolve) => {
   Redis.config.port = PORT;
@@ -24,6 +26,7 @@ beforeAll(() => new Promise((resolve) => {
     console.log(data.toString());
     // Use the text from the output to make sure server has started
     if (data.toString().indexOf(`The server is now ready to accept connections on port ${PORT}`) >= 0) {
+      direct = redis.createClient({ port: PORT });
       Cache = Redis.bind({
         cache: SimpleCache,
         cacheWithList: Redis.$(CacheWithList).List('list'),
@@ -40,8 +43,30 @@ beforeAll(() => new Promise((resolve) => {
 }));
 
 afterAll(() => {
+  direct.quit();
   Cache.quit();
   server.kill();
+});
+
+test('Check Redis get', async () => {
+  const obj = await SimpleCache.create('t', { name: 'Test' });
+  expect(obj.toJSON()).toMatchObject({
+    id: 't',
+    name: 'Test',
+  });
+
+  expect(SimpleCache.get('invalid')).resolves.toEqual(null);
+  const t = await SimpleCache.get('t');
+  expect(t.toJSON()).toMatchObject({
+    id: 't',
+    name: 'Test',
+  });
+
+  direct.lpush('cache:invalid', 'i', async (err, res) => {
+    expect(res).toBe(1);
+    const u = await SimpleCache.get('invalid');
+    expect(u).toBe(null);
+  });
 });
 
 test('Check Redis basic functions', async () => {
