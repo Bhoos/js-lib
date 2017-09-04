@@ -2,11 +2,11 @@
 Redis javascript object wrapper
 
 # Installation
-> `$ npm install @bhoos/redis`
+> `$ npm install @bhoos/js-redis`
 
 # Usage
 ```javascript
-import Redis from '@bhoos/redis';
+import Redis from '@bhoos/js-redis';
 
 Redis.config = {
   host: 127.0.0.1,  // Default
