@@ -1,0 +1,23 @@
+{
+  "name": "@bhoos/js-redis",
+  "version": "1.0.0",
+  "description": "A higher order Redis library",
+  "main": "build/index.js",
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "babel --out-dir ./build --ignore __tests__ --ignore __mocks__ ./src --copy-files",
+    "clean": "rimraf build && mkdir build",
+    "prepublish": "npm run clean && npm run build",
+    "test": "jest"
+  },
+  "author": "Ranjan Shrestha",
+  "license": "MIT",
+  "dependencies": {
+    "redis": "^2.8.0"
+  },
+  "devDependencies": {
+    "babel-jest": "^20.0.3"
+  }
+}
