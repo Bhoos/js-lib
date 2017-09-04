@@ -1,0 +1,17 @@
+{
+  "name": "@bhoos/js-redis",
+  "version": "1.0.0",
+  "description": "A higher order Redis library",
+  "main": "build/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Ranjan Shrestha",
+  "license": "MIT",
+  "dependencies": {
+    "redis": "^2.8.0"
+  },
+  "devDependencies": {
+    "babel-jest": "^20.0.3"
+  }
+}
