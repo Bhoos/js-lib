@@ -46,6 +46,20 @@ const remove = (client, key, dependents) => () => new Promise((resolve, reject) 
   });
 });
 
+// renews the TTL for record and all its dependents
+const renew = (client, key, dependents, ttl) => () => new Promise((resolve, reject) => {
+  const transaction = client.multi();
+  transaction.pexpire(key, ttl);
+  dependents.forEach(d => transaction.pexpire(d, ttl));
+  transaction.exec((err) => {
+    if (err) {
+      return reject(err);
+    }
+
+    return resolve(true);
+  });
+});
+
 function exists(client, key) {
   return new Promise((resolve) => {
     client.exists(key, (err, res) => {
@@ -75,6 +89,9 @@ function createObject(helper, client, key, id, attributes, ttl) {
 
   obj.remove = remove(client, key, dependents);
   obj.update = update(client, key, attributes);
+  if (ttl > 0) {
+    obj.renew = renew(client, key, dependents, ttl);
+  }
   return obj;
 }
 
