@@ -146,7 +146,7 @@ Redis.$ = (Class) => {
   return new RedisHelper(Class);
 };
 
-Redis.bind = def => new Promise((resolve) => {
+Redis.bind = (def) => {
   // First validate the classes that are being added in the definition
   const classes = Object.keys(def).map(name => Redis.$(def[name]).setName(name));
 
@@ -155,6 +155,8 @@ Redis.bind = def => new Promise((resolve) => {
   const res = {
     // Method to quit the binding (while closing application)
     quit: () => client.quit(),
+    onConnect: () => {},
+    onError: (err) => { console.error(err); },
   };
 
   // Generate all the classes
@@ -164,13 +166,14 @@ Redis.bind = def => new Promise((resolve) => {
 
   // the bind is considered complete only when the redis client is connected
   client.on('ready', () => {
-    resolve(res);
+    res.onConnect();
   });
 
   client.on('error', (err) => {
-    // TODO: check if the promise needs to be rejected here
-    console.error(err);
+    res.onError(err);
   });
-});
+
+  return res;
+};
 
 export default Redis;
