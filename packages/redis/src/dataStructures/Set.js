@@ -5,7 +5,7 @@ export default function (client, key, expireAt) {
       transaction.scard(key);
       transaction.sadd(key, item);
       if (expireAt) {
-        transaction.expireAt(key);
+        transaction.pexpireat(key, expireAt);
       }
 
       transaction.exec((err, res) => {

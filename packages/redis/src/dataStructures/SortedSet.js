@@ -1,29 +1,30 @@
 export default function SortedSet(client, key, expireAt) {
-
   class Filter {
     constructor(reverse) {
       if (reverse) {
         this.command = client.zrevrangebyscore;
-        this.min = Number.POSITIVE_INFINITY;
-        this.max = Number.NEGATIVE_INFINITY;
+        this.minScore = Number.POSITIVE_INFINITY;
+        this.maxScore = Number.NEGATIVE_INFINITY;
       } else {
-        this.command = client.zrevrangebyscore;
-        this.min = Number.POSITIVE_INFINITY;
-        this.max = Number.NEGATIVE_INFINITY;
+        this.command = client.zrangebyscore;
+        this.minScore = Number.NEGATIVE_INFINITY;
+        this.maxScore = Number.POSITIVE_INFINITY;
       }
     }
 
-    min(score, inclusive = true) {
-      this.min = inclusive ? score : `(${score}`;
+    start(score, inclusive = true) {
+      this.minScore = inclusive ? score : `(${score}`;
+      return this;
     }
 
-    max(score, inclusive = true) {
-      this.max = inclusive ? score : `(${score}`;
+    end(score, inclusive = true) {
+      this.maxScore = inclusive ? score : `(${score}`;
+      return this;
     }
 
     async get() {
       return new Promise((resolve, reject) => {
-        this.command(key, this.min, this.max, (err, res) => {
+        this.command.call(client, key, this.minScore, this.maxScore, (err, res) => {
           if (err) {
             return reject(err);
           }
@@ -40,7 +41,7 @@ export default function SortedSet(client, key, expireAt) {
       transaction.zcard(key);
       transaction.zadd(key, score, item);
       if (expireAt) {
-        transaction.expireat(key, expireAt);
+        transaction.pexpireat(key, expireAt);
       }
 
       transaction.exec((err, res) => {
@@ -89,7 +90,7 @@ export default function SortedSet(client, key, expireAt) {
           return reject(err);
         }
 
-        return resolve(res);
+        return resolve(parseFloat(res));
       });
     }),
 
