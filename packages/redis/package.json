@@ -1,6 +1,6 @@
 {
   "name": "@bhoos/js-redis",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A higher order Redis library",
   "main": "build/index.js",
   "files": [
@@ -9,7 +9,7 @@
   "scripts": {
     "build": "babel --out-dir ./build --ignore __tests__ --ignore __mocks__ ./src --copy-files",
     "clean": "rimraf build && mkdir build",
-    "prepublish": "npm run clean && npm run build",
+    "prepublish": "npm run test && npm run clean && npm run build",
     "test": "jest"
   },
   "author": "Ranjan Shrestha",
