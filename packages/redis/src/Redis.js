@@ -46,6 +46,20 @@ const remove = (client, key, dependents) => () => new Promise((resolve, reject) 
   });
 });
 
+// renews the TTL for record and all its dependents
+const renew = (client, key, dependents, ttl) => () => new Promise((resolve, reject) => {
+  const transaction = client.multi();
+  transaction.pexpire(key, ttl);
+  dependents.forEach(d => transaction.pexpire(d, ttl));
+  transaction.exec((err) => {
+    if (err) {
+      return reject(err);
+    }
+
+    return resolve(true);
+  });
+});
+
 function exists(client, key) {
   return new Promise((resolve) => {
     client.exists(key, (err, res) => {
@@ -75,11 +89,44 @@ function createObject(helper, client, key, id, attributes, ttl) {
 
   obj.remove = remove(client, key, dependents);
   obj.update = update(client, key, attributes);
+  if (ttl > 0) {
+    obj.renew = renew(client, key, dependents, ttl);
+  }
   return obj;
 }
 
 function bindClass(helper, client) {
   const Class = helper.Class;
+  Class.exists = id => new Promise((resolve, reject) => {
+    const key = Key(helper.getName(), id);
+    client.type(key, (err, res) => {
+      if (err) {
+        return reject(err);
+      }
+
+      // considered exist only if the type of the object stored is 'hash'
+      return resolve(res === 'hash');
+    });
+  });
+
+  Class.get = id => new Promise((resolve, reject) => {
+    const key = Key(helper.getName(), id);
+    const transaction = client.multi();
+    transaction.type(key);
+    transaction.hgetall(key);
+    transaction.exec((err, res) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (res[0] !== 'hash') {
+        return resolve(null);
+      }
+
+      return resolve(createObject(helper, client, key, id, res[1], helper.ttl));
+    });
+  });
+
   Class.create = async (id, attributes) => {
     const key = Key(helper.getName(), id);
     if (await exists(client, key)) {
