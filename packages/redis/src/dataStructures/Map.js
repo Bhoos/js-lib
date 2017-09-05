@@ -65,6 +65,21 @@ export default function (client, key, expireAt) {
       });
     }),
 
+    setAll: obj => new Promise((resolve, reject) => {
+      const transaction = client.multi();
+      transaction.hmset(key, obj);
+      if (expireAt) {
+        transaction.pexpireat(key, expireAt);
+      }
+      transaction.exec((err) => {
+        if (err) {
+          return reject(err);
+        }
+
+        return resolve(obj);
+      });
+    }),
+
     remove: field => new Promise((resolve, reject) => {
       client.hdel(key, field, (err, res) => {
         if (err) {
