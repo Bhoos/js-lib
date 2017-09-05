@@ -51,6 +51,22 @@ afterAll(() => {
   server.kill();
 });
 
+test('Check redis transaction return type', async () => {
+  // Checking this to see how the errors are passed in multi commands
+  direct.hmset('tmp-hash-1', 'f1', 'v1');
+  direct.lpush('tmp-hash-2', '1');
+  const t = direct.multi();
+  return new Promise((resolve) => {
+    t.hgetall('tmp-hash-1');
+    t.hgetall('tmp-hash-2');
+    t.exec((err, res) => {
+      expect(res[0]).toMatchObject({ f1: 'v1' });
+      expect(res[1]).toBeInstanceOf(Error);
+      resolve(res);
+    });
+  });
+});
+
 test('Check Redis get', async () => {
   const obj = await SimpleCache.create('t', { name: 'Test' });
   expect(obj.toJSON()).toMatchObject({
@@ -70,6 +86,30 @@ test('Check Redis get', async () => {
     const u = await SimpleCache.get('invalid');
     expect(u).toBe(null);
   });
+});
+
+test('Check Redis getAll', async () => {
+  await SimpleCache.create('l1', { n: 1 });
+  await SimpleCache.create('l2', { n: 2 });
+
+  const res = await SimpleCache.getAll(['l1', 'l2']);
+  expect(res.length).toBe(2);
+  expect(res[0].toJSON()).toMatchObject({ id: 'l1', n: '1' });
+  expect(res[1].toJSON()).toMatchObject({ id: 'l2', n: '2' });
+});
+
+test('Check Redis increase/decrease', async () => {
+  const attrs = { v: 'v' };
+  const obj = await SimpleCache.create('t1', attrs);
+
+  return Promise.all([
+    expect(obj.increase('counter', 2)).resolves.toBe(attrs),
+    expect(obj.increase('counter')).resolves.toEqual(attrs),
+    expect(obj.decrease('neg', 2)).resolves.toEqual(-2),
+    expect(obj.decrease('neg')).resolves.toEqual(-3),
+  ]).then(() => Promise.all([
+    expect(obj.toJSON()).toMatchObject({ id: 't1', v: 'v', counter: 3, neg: -3 }),
+  ]));
 });
 
 test('Check Redis basic functions', async () => {

@@ -14,7 +14,7 @@ class Redis {
   }
 
   toJSON() {
-    return Object.assign({ id: this.id }, this.attributes);
+    return Object.assign({}, this.attributes, { id: this.id });
   }
 }
 
@@ -45,6 +45,32 @@ const remove = (client, key, dependents) => () => new Promise((resolve, reject) 
     return resolve(true);
   });
 });
+
+const increase = (client, key, attributes) => (field, increment = 1) => new Promise(
+  (resolve, reject) => {
+    client.hincrby(key, field, increment, (err, res) => {
+      if (err) {
+        return reject(err);
+      }
+
+      // eslint-disable-next-line no-param-reassign
+      attributes[field] = res;
+      return resolve(attributes);
+    });
+  });
+
+const decrease = (client, key, attributes) => (field, increment = 1) => new Promise(
+  (resolve, reject) => {
+    client.hincrby(key, field, -increment, (err, res) => {
+      if (err) {
+        return reject(err);
+      }
+
+      // eslint-disable-next-line no-param-reassign
+      attributes[field] = res;
+      return resolve(res);
+    });
+  });
 
 // renews the TTL for record and all its dependents
 const renew = (client, key, dependents, ttl) => () => new Promise((resolve, reject) => {
@@ -77,6 +103,7 @@ function createObject(helper, client, key, id, attributes, ttl) {
   const obj = new helper.Class(id, attributes);
 
   obj.attributes = attributes;
+  obj.t = attributes;
   obj.id = id;
 
   const dependents = [];
@@ -89,6 +116,8 @@ function createObject(helper, client, key, id, attributes, ttl) {
 
   obj.remove = remove(client, key, dependents);
   obj.update = update(client, key, attributes);
+  obj.increase = increase(client, key, attributes);
+  obj.decrease = decrease(client, key, attributes);
   if (ttl > 0) {
     obj.renew = renew(client, key, dependents, ttl);
   }
@@ -168,10 +197,40 @@ function bindClass(helper, client) {
           return reject(new Error(`${key} is ${res[0]} (Doesn't exist or is not a hash)`));
         }
 
+        if (res[2] instanceof Error) {
+          return reject(res[2]);
+        }
+
         return resolve(createObject(helper, client, key, id, res[2], res[1]));
       });
     });
   };
+
+  Class.getAll = ids => new Promise((resolve, reject) => {
+    const keys = ids.map(id => Key(helper.getName(), id));
+    const transaction = client.multi();
+    keys.forEach((key) => {
+      transaction.pttl(key);
+      transaction.hgetall(key);
+    });
+
+    transaction.exec((err, res) => {
+      if (err) {
+        return reject(err);
+      }
+
+      const errs = res.filter(r => r instanceof Error);
+      if (errs.length > 0) {
+        return reject(errs[0]);
+      }
+
+      return resolve(keys.map((key, idx) => {
+        const expireAt = res[idx * 2];
+        const attributes = res[(idx * 2) + 1];
+        return createObject(helper, client, key, ids[idx], attributes, expireAt);
+      }));
+    });
+  });
 
   return Class;
 }
