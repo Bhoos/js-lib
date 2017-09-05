@@ -190,10 +190,40 @@ function bindClass(helper, client) {
           return reject(new Error(`${key} is ${res[0]} (Doesn't exist or is not a hash)`));
         }
 
+        if (res[2] instanceof Error) {
+          return reject(res[2]);
+        }
+
         return resolve(createObject(helper, client, key, id, res[2], res[1]));
       });
     });
   };
+
+  Class.getAll = ids => new Promise((resolve, reject) => {
+    const keys = ids.map(id => Key(helper.getName(), id));
+    const transaction = client.multi();
+    keys.forEach((key) => {
+      transaction.pttl(key);
+      transaction.hgetall(key);
+    });
+
+    transaction.exec((err, res) => {
+      if (err) {
+        return reject(err);
+      }
+
+      const errs = res.filter(r => r instanceof Error);
+      if (errs.length > 0) {
+        return reject(errs[0]);
+      }
+
+      return resolve(keys.map((key, idx) => {
+        const expireAt = res[idx * 2];
+        const attributes = res[(idx * 2) + 1];
+        return createObject(helper, client, key, ids[idx], attributes, expireAt);
+      }));
+    });
+  });
 
   return Class;
 }
