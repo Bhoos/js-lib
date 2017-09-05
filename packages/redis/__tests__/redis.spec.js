@@ -35,7 +35,7 @@ beforeAll(() => new Promise((resolve) => {
         cacheWithSet: Redis.$(CacheWithSet).Set('set'),
         cacheWithSortedSet: Redis.$(CacheWithSortedSet).SortedSet('sset'),
         cacheWithMap: Redis.$(CacheWithMap).Map('map'),
-        cacheWithAll: Redis.$(CacheWithAll).List('list').SortedSet('sset').Set('set').Map('map').TTL(1000),
+        cacheWithAll: Redis.$(CacheWithAll).List('list').SortedSet('sset').Set('set').Map('map').Map('map2').TTL(1000),
       });
 
       Cache.onConnect = () => {
@@ -122,6 +122,8 @@ test('Check Redis map', async () => {
     expect(obj.map.increase('counter', 1)).resolves.toEqual(1),
     expect(obj.map.increase('counter', 1)).resolves.toEqual(2),
     expect(obj.map.getAll()).resolves.toMatchObject({ f2: 'v2', counter: '2' }),
+    expect(obj.map.setAll({ f3: 'v3', f4: 'v4'})).resolves.toMatchObject({ f3: 'v3', f4: 'v4' }),
+    expect(obj.map.getAll()).resolves.toMatchObject({ f2: 'v2', counter: '2', f3: 'v3', f4: 'v4' }),
   ]);
 });
 
@@ -202,6 +204,7 @@ test('Check Redis with TTL', async () => {
   obj.sset.add('one', 1);
   obj.sset.add('two', 2);
   obj.map.set('f1', 1);
+  obj.map2.setAll({ f1: 1, f2: 2 });
 
   // Expect all values to exist before the TTL
   return Promise.all([
@@ -212,6 +215,7 @@ test('Check Redis with TTL', async () => {
           expect(obj.set.size()).resolves.toEqual(2),
           expect(obj.sset.size()).resolves.toEqual(2),
           expect(obj.map.size()).resolves.toEqual(1),
+          expect(obj.map2.size()).resolves.toEqual(2),
           expect(Cache.CacheWithAll.validate('1')).resolves.toMatchObject({ id: '1' }),
         ]));
       }, 500);
@@ -223,6 +227,7 @@ test('Check Redis with TTL', async () => {
           expect(obj.set.size()).resolves.toEqual(0),
           expect(obj.sset.size()).resolves.toEqual(0),
           expect(obj.map.size()).resolves.toEqual(0),
+          expect(obj.map2.size()).resolves.toEqual(0),
           expectValidationError(Cache.CacheWithAll.validate('1')),
         ]));
       }, 1000);
