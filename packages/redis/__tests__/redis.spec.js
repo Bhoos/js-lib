@@ -35,7 +35,7 @@ beforeAll(() => new Promise((resolve) => {
         cacheWithSet: Redis.$(CacheWithSet).Set('set'),
         cacheWithSortedSet: Redis.$(CacheWithSortedSet).SortedSet('sset'),
         cacheWithMap: Redis.$(CacheWithMap).Map('map'),
-        cacheWithAll: Redis.$(CacheWithAll).List('list').SortedSet('sset').Set('set').TTL(1000),
+        cacheWithAll: Redis.$(CacheWithAll).List('list').SortedSet('sset').Set('set').Map('map').TTL(1000),
       });
 
       Cache.onConnect = () => {
@@ -201,6 +201,7 @@ test('Check Redis with TTL', async () => {
   obj.set.add(2);
   obj.sset.add('one', 1);
   obj.sset.add('two', 2);
+  obj.map.set('f1', 1);
 
   // Expect all values to exist before the TTL
   return Promise.all([
@@ -210,6 +211,7 @@ test('Check Redis with TTL', async () => {
           expect(obj.list.size()).resolves.toEqual(1),
           expect(obj.set.size()).resolves.toEqual(2),
           expect(obj.sset.size()).resolves.toEqual(2),
+          expect(obj.map.size()).resolves.toEqual(1),
           expect(Cache.CacheWithAll.validate('1')).resolves.toMatchObject({ id: '1' }),
         ]));
       }, 500);
@@ -220,6 +222,7 @@ test('Check Redis with TTL', async () => {
           expect(obj.list.size()).resolves.toEqual(0),
           expect(obj.set.size()).resolves.toEqual(0),
           expect(obj.sset.size()).resolves.toEqual(0),
+          expect(obj.map.size()).resolves.toEqual(0),
           expectValidationError(Cache.CacheWithAll.validate('1')),
         ]));
       }, 1000);
