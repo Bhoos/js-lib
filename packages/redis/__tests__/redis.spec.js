@@ -11,6 +11,8 @@ class CacheWithList extends Redis {}
 
 class CacheWithSet extends Redis {}
 
+class CacheWithMap extends Redis {}
+
 class CacheWithSortedSet extends Redis {}
 
 class CacheWithAll extends Redis {}
@@ -32,6 +34,7 @@ beforeAll(() => new Promise((resolve) => {
         cacheWithList: Redis.$(CacheWithList).List('list'),
         cacheWithSet: Redis.$(CacheWithSet).Set('set'),
         cacheWithSortedSet: Redis.$(CacheWithSortedSet).SortedSet('sset'),
+        cacheWithMap: Redis.$(CacheWithMap).Map('map'),
         cacheWithAll: Redis.$(CacheWithAll).List('list').SortedSet('sset').Set('set').TTL(1000),
       });
 
@@ -101,6 +104,25 @@ test('Check Redis list', async () => {
   expect(obj.list.getAll()).resolves.toEqual(['2', '3']);
   await obj.list.set(0, 'changed');
   expect(obj.list.get(0)).resolves.toEqual('changed');
+});
+
+test('Check Redis map', async () => {
+  const obj = await Cache.CacheWithMap.create('1', { name: 'map-test' });
+  return Promise.all([
+    expect(obj.toJSON()).toMatchObject({ id: '1', name: 'map-test' }),
+    expect(obj.map.set('f1', 'v1')).resolves.toEqual('v1'),
+    expect(obj.map.get('f1')).resolves.toEqual('v1'),
+    expect(obj.map.set('f2', 'v2')).resolves.toEqual('v2'),
+    expect(obj.map.size()).resolves.toEqual(2),
+    expect(obj.map.keys()).resolves.toEqual(['f1', 'f2']),
+    expect(obj.map.values()).resolves.toEqual(['v1', 'v2']),
+    expect(obj.map.getAll()).resolves.toMatchObject({ f1: 'v1', f2: 'v2' }),
+    expect(obj.map.remove('f1')).resolves.toEqual(1),
+    expect(obj.map.getAll()).resolves.toMatchObject({ f2: 'v2' }),
+    expect(obj.map.increase('counter', 1)).resolves.toEqual(1),
+    expect(obj.map.increase('counter', 1)).resolves.toEqual(2),
+    expect(obj.map.getAll()).resolves.toMatchObject({ f2: 'v2', counter: '2' }),
+  ]);
 });
 
 test('Check Redis set', async () => {
