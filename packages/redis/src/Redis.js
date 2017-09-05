@@ -46,6 +46,26 @@ const remove = (client, key, dependents) => () => new Promise((resolve, reject) 
   });
 });
 
+const increase = (client, key) => (field, increment = 1) => new Promise((resolve, reject) => {
+  client.hincrby(key, field, increment, (err, res) => {
+    if (err) {
+      return reject(err);
+    }
+
+    return resolve(res);
+  });
+});
+
+const decrease = (client, key) => (field, increment = 1) => new Promise((resolve, reject) => {
+  client.hincrby(key, field, -increment, (err, res) => {
+    if (err) {
+      return reject(err);
+    }
+
+    return resolve(res);
+  });
+});
+
 // renews the TTL for record and all its dependents
 const renew = (client, key, dependents, ttl) => () => new Promise((resolve, reject) => {
   const transaction = client.multi();
@@ -89,6 +109,8 @@ function createObject(helper, client, key, id, attributes, ttl) {
 
   obj.remove = remove(client, key, dependents);
   obj.update = update(client, key, attributes);
+  obj.increase = increase(client, key);
+  obj.decrease = decrease(client, key);
   if (ttl > 0) {
     obj.renew = renew(client, key, dependents, ttl);
   }
