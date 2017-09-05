@@ -99,5 +99,15 @@ export default function (client, key, expireAt) {
         return resolve(res);
       });
     }),
+
+    decrease: (field, factor = 1) => new Promise((resolve, reject) => {
+      client.hincrby(key, field, -factor, (err, res) => {
+        if (err) {
+          return reject(err);
+        }
+
+        return resolve(res);
+      });
+    }),
   };
 }
