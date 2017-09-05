@@ -74,5 +74,15 @@ export default function (client, key, expireAt) {
         return resolve(res);
       });
     }),
+
+    increase: (field, increment = 1) => new Promise((resolve, reject) => {
+      client.hincrby(key, field, increment, (err, res) => {
+        if (err) {
+          return reject(err);
+        }
+
+        return resolve(res);
+      });
+    }),
   };
 }
