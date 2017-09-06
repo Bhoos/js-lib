@@ -1,8 +1,8 @@
 export default function List(client, key, expireAt) {
   return {
-    add(item) {
+    add(...items) {
       return new Promise((resolve, reject) => {
-        client.rpush(key, item, (err, res) => {
+        client.rpush(key, items, (err, res) => {
           if (err) {
             return reject(err);
           }

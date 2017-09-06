@@ -1,9 +1,9 @@
 export default function (client, key, expireAt) {
   return {
-    add: item => new Promise((resolve, reject) => {
+    add: (...items) => new Promise((resolve, reject) => {
       const transaction = client.multi();
       transaction.scard(key);
-      transaction.sadd(key, item);
+      transaction.sadd(key, items);
       if (expireAt) {
         transaction.pexpireat(key, expireAt);
       }
@@ -28,8 +28,8 @@ export default function (client, key, expireAt) {
       });
     }),
 
-    remove: item => new Promise((resolve, reject) => {
-      client.srem(key, item, (err, res) => {
+    remove: (...items) => new Promise((resolve, reject) => {
+      client.srem(key, items, (err, res) => {
         if (err) {
           return reject(err);
         }
