@@ -275,3 +275,14 @@ test('Check Redis with TTL', async () => {
   ]);
 });
 
+test('Check multiple addition', async () => {
+  const obj = await Cache.CacheWithAll.create('t', { name: 'm' });
+  return Promise.all([
+    expect(obj.list.add(1, 2, 3)).resolves.toEqual(3),
+    expect(obj.set.add(1, 2, 3)).resolves.toEqual(3),
+    expect(obj.set.getAll()).resolves.toEqual(['1', '2', '3']),
+    expect(obj.list.getAll()).resolves.toEqual(['1', '2', '3']),
+    expect(obj.set.remove(2, 3)).resolves.toEqual(2),
+    expect(obj.set.getAll()).resolves.toEqual(['1']),
+  ]);
+});
