@@ -25,7 +25,7 @@ beforeAll(() => new Promise((resolve) => {
   Redis.config.port = PORT;
   server = spawn('redis-server', ['--save', '', '--appendonly', 'no', '--port', PORT]);
   server.stdout.on('data', (data) => {
-    console.log(data.toString());
+    // console.log(data.toString());
     // Use the text from the output to make sure server has started
     if (data.toString().indexOf(`The server is now ready to accept connections on port ${PORT}`) >= 0) {
       direct = redis.createClient({ port: PORT });
@@ -37,7 +37,6 @@ beforeAll(() => new Promise((resolve) => {
         cacheWithMap: Redis.$(CacheWithMap).Map('map'),
         cacheWithAll: Redis.$(CacheWithAll).List('list').SortedSet('sset').Set('set').Map('map').Map('map2').TTL(1000),
       });
-
       Cache.onConnect = () => {
         resolve();
       };
@@ -285,4 +284,18 @@ test('Check multiple addition', async () => {
     expect(obj.set.remove(2, 3)).resolves.toEqual(2),
     expect(obj.set.getAll()).resolves.toEqual(['1']),
   ]);
+});
+
+test('Check iterator', async () => {
+  await Cache.CacheWithAll.create('n1', { n: 1 });
+  await Cache.CacheWithAll.create('n2', { n: 2 });
+  await Cache.CacheWithAll.create('n3', { n: 2 });
+  await Cache.CacheWithAll.create('n4', { n: 2 });
+  await Cache.CacheWithAll.create('n5', { n: 2 });
+  await Cache.CacheWithAll.create('n6', { n: 2 });
+  await Cache.CacheWithAll.create('n7', { n: 2 });
+  await Cache.CacheWithAll.create('n8', { n: 2 });
+
+  const all = await Cache.CacheWithAll.iterator().all();
+  expect(all.length).toBe(9);
 });

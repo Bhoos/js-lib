@@ -1,8 +1,10 @@
 import RedisHelper from './RedisHelper';
+import Iterator from './Iterator';
 
 const redis = require('redis');
 
 const Key = (name, id) => `${name}:${id}`;
+const Id = name => key => key.substring(name.length + 1);
 
 class Redis {
   get(attr) {
@@ -109,7 +111,7 @@ function createObject(helper, client, key, id, attributes, ttl) {
   const dependents = [];
   // Setup the data structures
   Object.keys(helper.children).forEach((name) => {
-    const fieldKey = `${key}:${name}`;
+    const fieldKey = `${name}#${key}`;
     dependents.push(fieldKey);
     obj[name] = helper.children[name](client, fieldKey, expireAt);
   });
@@ -122,6 +124,31 @@ function createObject(helper, client, key, id, attributes, ttl) {
     obj.renew = renew(client, key, dependents, ttl);
   }
   return obj;
+}
+
+function getObject(helper, client, key, id) {
+  const transaction = client.multi();
+  transaction.type(key);
+  transaction.pttl(key);
+  transaction.hgetall(key);
+
+  return new Promise((resolve, reject) => {
+    transaction.exec((err, res) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (res[0] !== 'hash') {
+        return resolve(null);
+      }
+
+      if (res[2] instanceof Error) {
+        return reject(res[2]);
+      }
+
+      return resolve(createObject(helper, client, key, id, res[2], res[1]));
+    });
+  });
 }
 
 function bindClass(helper, client) {
@@ -138,23 +165,10 @@ function bindClass(helper, client) {
     });
   });
 
-  Class.get = id => new Promise((resolve, reject) => {
+  Class.get = async (id) => {
     const key = Key(helper.getName(), id);
-    const transaction = client.multi();
-    transaction.type(key);
-    transaction.hgetall(key);
-    transaction.exec((err, res) => {
-      if (err) {
-        return reject(err);
-      }
-
-      if (res[0] !== 'hash') {
-        return resolve(null);
-      }
-
-      return resolve(createObject(helper, client, key, id, res[1], helper.ttl));
-    });
-  });
+    return getObject(helper, client, key, id);
+  };
 
   Class.create = async (id, attributes) => {
     const key = Key(helper.getName(), id);
@@ -180,30 +194,21 @@ function bindClass(helper, client) {
     });
   };
 
-  Class.validate = (id) => {
+  Class.validate = async (id) => {
     const key = Key(helper.getName(), id);
-    const transaction = client.multi();
-    transaction.type(key);
-    transaction.pttl(key);
-    transaction.hgetall(key);
+    const obj = await getObject(helper, client, key, id);
+    if (obj === null) {
+      throw new Error(`${key} not found (Doesn't exist or is not a hash)`);
+    }
 
-    return new Promise((resolve, reject) => {
-      transaction.exec((err, res) => {
-        if (err) {
-          return reject(err);
-        }
+    return obj;
+  };
 
-        if (res[0] !== 'hash') {
-          return reject(new Error(`${key} is ${res[0]} (Doesn't exist or is not a hash)`));
-        }
+  Class.iterator = () => {
+    const pattern = Key(helper.getName(), '*');
+    const extractId = Id(helper.getName());
 
-        if (res[2] instanceof Error) {
-          return reject(res[2]);
-        }
-
-        return resolve(createObject(helper, client, key, id, res[2], res[1]));
-      });
-    });
+    return Iterator(client, pattern, extractId, Class.get);
   };
 
   Class.getAll = ids => new Promise((resolve, reject) => {
