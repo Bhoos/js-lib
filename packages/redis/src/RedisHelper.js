@@ -22,8 +22,8 @@ class RedisHelper {
     return this.name;
   }
 
-  TTL(seconds) {
-    this.ttl = seconds;
+  TTL(milliseconds) {
+    this.ttl = milliseconds;
     return this;
   }
 
