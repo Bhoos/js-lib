@@ -1,5 +1,7 @@
 export default function (client, key, expireAt) {
   return {
+    key,
+
     add: (...items) => new Promise((resolve, reject) => {
       const transaction = client.multi();
       transaction.scard(key);

@@ -1,5 +1,7 @@
 export default function (client, key, expireAt) {
   return {
+    key,
+
     set: (field, value) => new Promise((resolve, reject) => {
       const transaction = client.multi();
       transaction.hset(key, field, value);

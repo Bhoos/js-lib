@@ -36,6 +36,8 @@ export default function SortedSet(client, key, expireAt) {
   }
 
   return {
+    key,
+
     add: (item, score) => new Promise((resolve, reject) => {
       const transaction = client.multi();
       transaction.zcard(key);
