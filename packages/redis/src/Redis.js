@@ -57,7 +57,7 @@ const increase = (client, key, attributes) => (field, increment = 1) => new Prom
 
       // eslint-disable-next-line no-param-reassign
       attributes[field] = res;
-      return resolve(attributes);
+      return resolve(res);
     });
   });
 
