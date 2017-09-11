@@ -107,6 +107,7 @@ function createObject(helper, client, key, id, attributes, ttl) {
   obj.attributes = attributes;
   obj.t = attributes;
   obj.id = id;
+  obj.key = key;
 
   const dependents = [];
   // Setup the data structures
