@@ -102,8 +102,8 @@ test('Check Redis increase/decrease', async () => {
   const obj = await SimpleCache.create('t1', attrs);
 
   return Promise.all([
-    expect(obj.increase('counter', 2)).resolves.toBe(attrs),
-    expect(obj.increase('counter')).resolves.toEqual(attrs),
+    expect(obj.increase('counter', 2)).resolves.toBe(2),
+    expect(obj.increase('counter')).resolves.toEqual(3),
     expect(obj.decrease('neg', 2)).resolves.toEqual(-2),
     expect(obj.decrease('neg')).resolves.toEqual(-3),
   ]).then(() => Promise.all([
