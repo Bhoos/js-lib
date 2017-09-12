@@ -117,6 +117,17 @@ function createObject(helper, client, key, id, attributes, ttl) {
     obj[name] = helper.children[name](client, fieldKey, expireAt);
   });
 
+  obj.watch = (dataStructure = null) => new Promise((resolve, reject) => {
+    const keyToWatch = dataStructure === null ? this.key : dataStructure.key;
+    client.watch(keyToWatch, (err, res) => {
+      if (err) {
+        return reject(err);
+      }
+
+      return resolve(res);
+    });
+  });
+
   obj.remove = remove(client, key, dependents);
   obj.update = update(client, key, attributes);
   obj.increase = increase(client, key, attributes);
