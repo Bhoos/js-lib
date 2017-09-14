@@ -25,7 +25,7 @@ beforeAll(() => new Promise((resolve) => {
   Redis.config.port = PORT;
   server = spawn('redis-server', ['--save', '', '--appendonly', 'no', '--port', PORT]);
   server.stdout.on('data', (data) => {
-    console.log(data.toString());
+    // console.log(data.toString());
     // Use the text from the output to make sure server has started
     if (data.toString().indexOf(`The server is now ready to accept connections on port ${PORT}`) >= 0) {
       direct = redis.createClient({ port: PORT });
@@ -37,7 +37,6 @@ beforeAll(() => new Promise((resolve) => {
         cacheWithMap: Redis.$(CacheWithMap).Map('map'),
         cacheWithAll: Redis.$(CacheWithAll).List('list').SortedSet('sset').Set('set').Map('map').Map('map2').TTL(1000),
       });
-
       Cache.onConnect = () => {
         resolve();
       };
@@ -74,7 +73,7 @@ test('Check Redis get', async () => {
     name: 'Test',
   });
 
-  expect(SimpleCache.get('invalid')).resolves.toEqual(null);
+  expect(await SimpleCache.get('invalid')).toEqual(null);
   const t = await SimpleCache.get('t');
   expect(t.toJSON()).toMatchObject({
     id: 't',
@@ -103,8 +102,8 @@ test('Check Redis increase/decrease', async () => {
   const obj = await SimpleCache.create('t1', attrs);
 
   return Promise.all([
-    expect(obj.increase('counter', 2)).resolves.toBe(attrs),
-    expect(obj.increase('counter')).resolves.toEqual(attrs),
+    expect(obj.increase('counter', 2)).resolves.toBe(2),
+    expect(obj.increase('counter')).resolves.toEqual(3),
     expect(obj.decrease('neg', 2)).resolves.toEqual(-2),
     expect(obj.decrease('neg')).resolves.toEqual(-3),
   ]).then(() => Promise.all([
@@ -134,68 +133,72 @@ test('Check Redis basic functions', async () => {
     name: 'Changed Name',
     eman: 'Reverse name',
   });
+  expect(await obj.remove()).toBe(true);
+
 });
 
 test('Check Redis list', async () => {
   const obj = await Cache.CacheWithList.create('2', { name: 'list' });
   expect(obj.toJSON()).toMatchObject({ id: '2', name: 'list' });
-  expect(obj.list.add(2)).resolves.toEqual(1);
-  expect(obj.list.add(3)).resolves.toEqual(2);
-  expect(obj.list.getAll()).resolves.toEqual(['2', '3']);
+  expect(await obj.list.add(2)).toEqual(1);
+  expect(await obj.list.add(3)).toEqual(2);
+  expect(await obj.list.getAll()).toEqual(['2', '3']);
   await obj.list.set(0, 'changed');
-  expect(obj.list.get(0)).resolves.toEqual('changed');
+  expect(await obj.list.get(0)).toEqual('changed');
 });
 
 test('Check Redis map', async () => {
   const obj = await Cache.CacheWithMap.create('1', { name: 'map-test' });
-  return Promise.all([
-    expect(obj.toJSON()).toMatchObject({ id: '1', name: 'map-test' }),
-    expect(obj.map.set('f1', 'v1')).resolves.toEqual('v1'),
-    expect(obj.map.get('f1')).resolves.toEqual('v1'),
-    expect(obj.map.set('f2', 'v2')).resolves.toEqual('v2'),
-    expect(obj.map.size()).resolves.toEqual(2),
-    expect(obj.map.keys()).resolves.toEqual(['f1', 'f2']),
-    expect(obj.map.values()).resolves.toEqual(['v1', 'v2']),
-    expect(obj.map.getAll()).resolves.toMatchObject({ f1: 'v1', f2: 'v2' }),
-    expect(obj.map.remove('f1')).resolves.toEqual(1),
-    expect(obj.map.getAll()).resolves.toMatchObject({ f2: 'v2' }),
-    expect(obj.map.increase('counter', 1)).resolves.toEqual(1),
-    expect(obj.map.increase('counter', 1)).resolves.toEqual(2),
-    expect(obj.map.getAll()).resolves.toMatchObject({ f2: 'v2', counter: '2' }),
-    expect(obj.map.setAll({ f3: 'v3', f4: 'v4'})).resolves.toMatchObject({ f3: 'v3', f4: 'v4' }),
-    expect(obj.map.getAll()).resolves.toMatchObject({ f2: 'v2', counter: '2', f3: 'v3', f4: 'v4' }),
-  ]);
+  expect(obj.toJSON()).toMatchObject({ id: '1', name: 'map-test' });
+  expect(await obj.map.set('f1', 'v1')).toEqual('v1');
+  expect(await obj.map.get('f1')).toEqual('v1');
+  expect(await obj.map.set('f2', 'v2')).toEqual('v2');
+  expect(await obj.map.size()).toEqual(2);
+  expect(await obj.map.keys()).toEqual(['f1', 'f2']);
+  expect(await obj.map.values()).toEqual(['v1', 'v2']);
+  expect(await obj.map.getAll()).toMatchObject({ f1: 'v1', f2: 'v2' });
+  expect(await obj.map.remove('f1')).toEqual(1);
+  expect(await obj.map.getAll()).toMatchObject({ f2: 'v2' });
+  expect(await obj.map.increase('counter', 1)).toEqual(1);
+  expect(await obj.map.increase('counter', 1)).toEqual(2);
+  expect(await obj.map.getAll()).toMatchObject({ f2: 'v2', counter: '2' });
+  expect(await obj.map.setAll({ f3: 'v3', f4: 'v4'})).toMatchObject({ f3: 'v3', f4: 'v4' });
+  expect(await obj.map.getAll()).toMatchObject({ f2: 'v2', counter: '2', f3: 'v3', f4: 'v4' });
 });
 
 test('Check Redis set', async () => {
   const obj = await Cache.CacheWithSet.create('1', { name: 'set' });
   expect(obj.toJSON()).toMatchObject({ id: '1', name: 'set' });
-  expect(obj.set.add('one')).resolves.toEqual(1);
-  expect(obj.set.add('two')).resolves.toEqual(2);
-  expect(obj.set.add('one')).resolves.toEqual(2);
-  expect(obj.set.size()).resolves.toEqual(2);
+
+  expect(await obj.set.add('one')).toEqual(1);
+  expect(await obj.set.add('two')).toEqual(2);
+  expect(await obj.set.add('one')).toEqual(2);
+
   const list = await obj.set.getAll();
   expect(list.length).toBe(2);
   expect(list).toContain('one');
   expect(list).toContain('two');
-  expect(obj.set.contains('two')).resolves.toEqual(true);
-  expect(obj.set.contains('three')).resolves.toEqual(false);
-  expect(obj.set.remove('one')).resolves.toEqual(1);
-  expect(obj.set.size()).resolves.toEqual(1);
+
+  expect(await obj.set.contains('two')).toEqual(true);
+  expect(await obj.set.contains('three')).toEqual(false);
+  expect(await obj.set.remove('one')).toEqual(1);
+  expect(await obj.set.contains('one')).toEqual(false);
+  expect(await obj.set.size()).toEqual(1);
 });
 
 test('Check Redis SortedSet', async () => {
   const obj = await Cache.CacheWithSortedSet.create('1', { name: 'sorted-set' });
   expect(obj.toJSON()).toMatchObject({ id: '1', name: 'sorted-set' });
-  expect(obj.sset.add('one', 1)).resolves.toEqual(1);
-  expect(obj.sset.add('two', 2)).resolves.toEqual(2);
+  expect(await obj.sset.add('one', 1)).toEqual(1);
+  expect(await obj.sset.add('two', 2)).toEqual(2);
+
   const list = await obj.sset.getAll();
   expect(list.length).toBe(2);
-  expect(obj.sset.contains('two')).resolves.toEqual(true);
-  expect(obj.sset.remove('one')).resolves.toEqual(1);
-  expect(obj.sset.contains('one')).resolves.toEqual(false);
-  expect(obj.sset.add('three', 3)).resolves.toEqual(2);
-  expect(obj.sset.getScore('two')).resolves.toEqual(2);
+  expect(await obj.sset.contains('two')).toEqual(true);
+  expect(await obj.sset.remove('one')).toEqual(1);
+  expect(await obj.sset.contains('one')).toEqual(false);
+  expect(await obj.sset.add('three', 3)).toEqual(2);
+  expect(await obj.sset.getScore('two')).toEqual(2);
 
   const filter = obj.sset.filter();
   const filteredList = await filter.get();
@@ -219,13 +222,13 @@ test('Check Redis SortedSet', async () => {
   expect(list4).toEqual(['four', 'five']);
 
   const rFilter = obj.sset.filter(true);
-  expect(rFilter.get()).resolves.toEqual(['five', 'four', 'three', 'two']);
+  expect(await rFilter.get()).toEqual(['five', 'four', 'three', 'two']);
   rFilter.start(5).end(3);
-  expect(rFilter.get()).resolves.toEqual(['five', 'four', 'three']);
+  expect(await rFilter.get()).toEqual(['five', 'four', 'three']);
   rFilter.start(5, false).end(3);
-  expect(rFilter.get()).resolves.toEqual(['four', 'three']);
+  expect(await rFilter.get()).toEqual(['four', 'three']);
   rFilter.start(5).end(3, false);
-  expect(rFilter.get()).resolves.toEqual(['five', 'four']);
+  expect(await rFilter.get()).toEqual(['five', 'four']);
 });
 
 function expectValidationError(res) {
@@ -236,42 +239,132 @@ function expectValidationError(res) {
   ));
 }
 
+async function runAfter(interval, action) {
+  return new Promise((resolve) => {
+    setTimeout(async () => {
+      resolve(await action());
+    }, interval);
+  });
+}
+
 test('Check Redis with TTL', async () => {
   const obj = await Cache.CacheWithAll.create('1', { name: 'all' });
-  obj.list.add(1);
-  obj.set.add(1);
-  obj.set.add(2);
-  obj.sset.add('one', 1);
-  obj.sset.add('two', 2);
-  obj.map.set('f1', 1);
-  obj.map2.setAll({ f1: 1, f2: 2 });
+  await obj.list.add(1);
+  await obj.set.add(1);
+  await obj.set.add(2);
+  await obj.sset.add('one', 1);
+  await obj.sset.add('two', 2);
+  await obj.map.set('f1', 1);
+  await obj.map2.setAll({ f1: 1, f2: 2 });
 
-  // Expect all values to exist before the TTL
-  return Promise.all([
-    new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(Promise.all([
-          expect(obj.list.size()).resolves.toEqual(1),
-          expect(obj.set.size()).resolves.toEqual(2),
-          expect(obj.sset.size()).resolves.toEqual(2),
-          expect(obj.map.size()).resolves.toEqual(1),
-          expect(obj.map2.size()).resolves.toEqual(2),
-          expect(Cache.CacheWithAll.validate('1')).resolves.toMatchObject({ id: '1' }),
-        ]));
-      }, 500);
-    }),
-    new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(Promise.all([
-          expect(obj.list.size()).resolves.toEqual(0),
-          expect(obj.set.size()).resolves.toEqual(0),
-          expect(obj.sset.size()).resolves.toEqual(0),
-          expect(obj.map.size()).resolves.toEqual(0),
-          expect(obj.map2.size()).resolves.toEqual(0),
-          expectValidationError(Cache.CacheWithAll.validate('1')),
-        ]));
-      }, 1000);
-    }),
-  ]);
+  await runAfter(500, async () => {
+    expect(await obj.list.size()).toEqual(1);
+    expect(await obj.set.size()).toEqual(2);
+    expect(await obj.sset.size()).toEqual(2);
+    expect(await obj.map.size()).toEqual(1);
+    expect(await obj.map2.size()).toEqual(2);
+    expect(await Cache.CacheWithAll.validate('1')).toMatchObject({ id: '1' });
+  });
+
+  await runAfter(1000, async () => {
+    expect(await obj.list.size()).toEqual(0);
+    expect(await obj.set.size()).toEqual(0);
+    expect(await obj.sset.size()).toEqual(0);
+    expect(await obj.map.size()).toEqual(0);
+    expect(await obj.map2.size()).toEqual(0);
+    await expectValidationError(Cache.CacheWithAll.validate('1'));
+  });
 });
 
+test('Check multiple addition', async () => {
+  const obj = await Cache.CacheWithAll.create('t', { name: 'm' });
+  expect(await obj.list.add(1, 2, 3)).toEqual(3);
+  expect(await obj.set.add(1, 2, 3)).toEqual(3);
+  expect(await obj.list.getAll()).toEqual(['1', '2', '3']);
+  expect(await obj.set.remove(2, 3)).toEqual(2);
+  expect(await obj.set.getAll()).toEqual(['1']);
+});
+
+test('Check iterator', async () => {
+  await Cache.CacheWithAll.create('n1', { n: 1 });
+  await Cache.CacheWithAll.create('n2', { n: 2 });
+  await Cache.CacheWithAll.create('n3', { n: 2 });
+  await Cache.CacheWithAll.create('n4', { n: 2 });
+  await Cache.CacheWithAll.create('n5', { n: 2 });
+  await Cache.CacheWithAll.create('n6', { n: 2 });
+  await Cache.CacheWithAll.create('n7', { n: 2 });
+  await Cache.CacheWithAll.create('n8', { n: 2 });
+
+  const all = await Cache.CacheWithAll.iterator().all();
+  expect(all.length).toBe(9);
+});
+
+test('Check watch failure', async () => {
+  const obj = await Cache.CacheWithAll.create('w1', { n: 'watch' });
+  const listSizeBeforeWatch = await obj.list.size();
+  async function breakWatch() {
+    return new Promise((resolve, reject) => {
+      direct.lpush(obj.list.key, 'direct_value', (err, res) => {
+        if (err) {
+          return reject(err);
+        }
+
+        return resolve(res);
+      });
+    });
+  }
+
+  const watchRes = await obj.watch(obj.list, async () => {
+    await breakWatch();
+    expect(await obj.list.size()).toBe(listSizeBeforeWatch + 1);
+    obj.list.add('fail item');
+  });
+
+  expect(watchRes).toBe(null);
+  expect(await obj.list.size()).toBe(listSizeBeforeWatch + 1);
+});
+
+// test('Check watch failture', async () => {
+//   const obj = await Cache.CacheWithAll.create('w1', { n: 'watch' });
+
+//   await obj.watch(obj.list);
+
+//   const t1 = direct.multi();
+//   t1.rpush(obj.list.key, 't1', (err, res) => {
+//     console.log('After t1 push', res, err);
+//   });
+//   t1.exec((err, res) => {
+//     console.log(res, err);
+//   });
+
+//   direct.watch(obj.list.key);
+//   const t2 = direct.multi();
+//   // obj.list.add('t-between');
+//   t2.rpush(obj.list.key, 't2', (err, res) => {
+//     console.log('After t2 push', res, err);
+//   });
+//   t2.sadd(obj.set.key, 't2', 't2', (err, res) => {
+//     console.log('T2 set add', res, err);
+//   });
+//   t2.exec((err, res) => {
+//     console.log(res, err);
+//   });
+
+//   const t3 = direct.multi();
+//   t3.sadd('temp-key', '2');
+//   t3.type('temp-key', (err, res) => {
+//     console.log('Type', res, err);
+//   });
+
+//   t3.hgetall('temp-key', (err, res) => {
+//     console.log('getall', res, err);
+//   });
+
+//   t3.exec((err, res) => {
+//     console.log('exec', res, err);
+//   });
+
+
+
+//   return expect(obj.list.size()).resolves.toBe(2);
+// });

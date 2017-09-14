@@ -1,21 +1,23 @@
 export default function (client, key, expireAt) {
   return {
-    add: item => new Promise((resolve, reject) => {
-      const transaction = client.multi();
-      transaction.scard(key);
-      transaction.sadd(key, item);
-      if (expireAt) {
-        transaction.pexpireat(key, expireAt);
-      }
+    key,
 
-      transaction.exec((err, res) => {
+    add: (...items) => client.transaction((transaction, resolve, reject) => {
+      let previousSize = NaN;
+      transaction.scard(key, (err, res) => {
+        previousSize = parseInt(res, 10);
+      });
+
+      transaction.sadd(key, items, (err, res) => {
         if (err) {
           return reject(err);
         }
-
-        // Return the total number of elements in the set
-        return resolve(res[0] + res[1]);
+        return resolve(previousSize + parseInt(res, 10));
       });
+
+      if (expireAt) {
+        transaction.pexpireat(key, expireAt);
+      }
     }),
 
     size: () => new Promise((resolve, reject) => {
@@ -28,8 +30,8 @@ export default function (client, key, expireAt) {
       });
     }),
 
-    remove: item => new Promise((resolve, reject) => {
-      client.srem(key, item, (err, res) => {
+    remove: (...items) => client.transaction((transaction, resolve, reject) => {
+      transaction.srem(key, items, (err, res) => {
         if (err) {
           return reject(err);
         }

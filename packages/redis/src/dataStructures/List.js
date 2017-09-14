@@ -1,18 +1,20 @@
 export default function List(client, key, expireAt) {
   return {
-    add(item) {
-      return new Promise((resolve, reject) => {
-        client.rpush(key, item, (err, res) => {
+    key,
+
+    add(...items) {
+      return client.transaction((transaction, resolve, reject) => {
+        transaction.rpush(key, items, (err, res) => {
           if (err) {
             return reject(err);
           }
 
-          if (res === 1 && expireAt > 0) {
-            client.pexpireat(key, expireAt);
-          }
-
           return resolve(res);
         });
+
+        if (expireAt > 0) {
+          transaction.pexpireat(key, expireAt);
+        }
       });
     },
 
@@ -53,8 +55,8 @@ export default function List(client, key, expireAt) {
     },
 
     set(index, value) {
-      return new Promise((resolve, reject) => {
-        client.lset(key, index, value, (err, res) => {
+      return client.transaction((transaction, resolve, reject) => {
+        transaction.lset(key, index, value, (err, res) => {
           if (err) {
             return reject(err);
           }

@@ -1,19 +1,19 @@
 export default function (client, key, expireAt) {
   return {
-    set: (field, value) => new Promise((resolve, reject) => {
-      const transaction = client.multi();
-      transaction.hset(key, field, value);
-      if (expireAt) {
-        transaction.pexpireat(key, expireAt);
-      }
+    key,
 
-      transaction.exec((err) => {
+    set: (field, value) => client.transaction((transaction, resolve, reject) => {
+      transaction.hset(key, field, value, (err) => {
         if (err) {
           return reject(err);
         }
 
         return resolve(value);
       });
+
+      if (expireAt) {
+        transaction.pexpireat(key, expireAt);
+      }
     }),
 
     get: field => new Promise((resolve, reject) => {
@@ -65,9 +65,14 @@ export default function (client, key, expireAt) {
       });
     }),
 
-    setAll: obj => new Promise((resolve, reject) => {
-      const transaction = client.multi();
-      transaction.hmset(key, obj);
+    setAll: obj => client.transaction((transaction, resolve, reject) => {
+      transaction.hmset(key, obj, (err) => {
+        if (err) {
+          return reject(err);
+        }
+
+        return resolve(obj);
+      });
       if (expireAt) {
         transaction.pexpireat(key, expireAt);
       }
@@ -80,8 +85,8 @@ export default function (client, key, expireAt) {
       });
     }),
 
-    remove: field => new Promise((resolve, reject) => {
-      client.hdel(key, field, (err, res) => {
+    remove: field => client.transaction((transaction, resolve, reject) => {
+      transaction.hdel(key, field, (err, res) => {
         if (err) {
           return reject(err);
         }
@@ -90,8 +95,8 @@ export default function (client, key, expireAt) {
       });
     }),
 
-    increase: (field, increment = 1) => new Promise((resolve, reject) => {
-      client.hincrby(key, field, increment, (err, res) => {
+    increase: (field, increment = 1) => client.transaction((transaction, resolve, reject) => {
+      transaction.hincrby(key, field, increment, (err, res) => {
         if (err) {
           return reject(err);
         }
@@ -100,8 +105,8 @@ export default function (client, key, expireAt) {
       });
     }),
 
-    decrease: (field, factor = 1) => new Promise((resolve, reject) => {
-      client.hincrby(key, field, -factor, (err, res) => {
+    decrease: (field, factor = 1) => client.transaction((transaction, resolve, reject) => {
+      transaction.hincrby(key, field, -factor, (err, res) => {
         if (err) {
           return reject(err);
         }

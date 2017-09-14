@@ -1,8 +1,10 @@
 import RedisHelper from './RedisHelper';
+import Iterator from './Iterator';
 
 const redis = require('redis');
 
 const Key = (name, id) => `${name}:${id}`;
+const Id = name => key => key.substring(name.length + 1);
 
 class Redis {
   get(attr) {
@@ -33,18 +35,20 @@ const update = (client, key, attributes) => () => new Promise((resolve, reject) 
   });
 });
 
-const remove = (client, key, dependents) => () => new Promise((resolve, reject) => {
-  const transaction = client.multi();
-  transaction.del(key);
-  dependents.forEach(d => transaction.del(d));
-  transaction.exec((err) => {
-    if (err) {
-      return reject(err);
-    }
+const remove = (client, key, dependents) => () => client.transaction(
+  (transaction, resolve, reject) => {
+    // Remove all the dependent structures
+    dependents.forEach(d => transaction.del(d));
 
-    return resolve(true);
+    // Remove the main key
+    transaction.del(key, (err) => {
+      if (err) {
+        return reject(err);
+      }
+
+      return resolve(true);
+    });
   });
-});
 
 const increase = (client, key, attributes) => (field, increment = 1) => new Promise(
   (resolve, reject) => {
@@ -55,7 +59,7 @@ const increase = (client, key, attributes) => (field, increment = 1) => new Prom
 
       // eslint-disable-next-line no-param-reassign
       attributes[field] = res;
-      return resolve(attributes);
+      return resolve(res);
     });
   });
 
@@ -73,18 +77,17 @@ const decrease = (client, key, attributes) => (field, increment = 1) => new Prom
   });
 
 // renews the TTL for record and all its dependents
-const renew = (client, key, dependents, ttl) => () => new Promise((resolve, reject) => {
-  const transaction = client.multi();
-  transaction.pexpire(key, ttl);
-  dependents.forEach(d => transaction.pexpire(d, ttl));
-  transaction.exec((err) => {
-    if (err) {
-      return reject(err);
-    }
+const renew = (client, key, dependents, ttl) => () => client.transaction(
+  (transaction, resolve, reject) => {
+    dependents.forEach(d => transaction.pexpire(d, ttl));
+    transaction.pexpire(key, ttl, (err) => {
+      if (err) {
+        return reject(err);
+      }
 
-    return resolve(true);
+      return resolve(true);
+    });
   });
-});
 
 function exists(client, key) {
   return new Promise((resolve) => {
@@ -98,6 +101,22 @@ function exists(client, key) {
   });
 }
 
+function watch(client) {
+  return (keyProvider, watcher) => new Promise((resolve, reject) => {
+    const key = keyProvider.key;
+    client.watch(key, (err) => {
+      if (err) {
+        return reject(err);
+      }
+
+      // TODO: Do not perform a watch if already within a transaction
+
+      // Watch was successful, time to run the transaction
+      return resolve(client.transaction(watcher));
+    });
+  });
+}
+
 function createObject(helper, client, key, id, attributes, ttl) {
   const expireAt = ttl > 0 ? (Date.now() + ttl) : 0;
   const obj = new helper.Class(id, attributes);
@@ -105,14 +124,17 @@ function createObject(helper, client, key, id, attributes, ttl) {
   obj.attributes = attributes;
   obj.t = attributes;
   obj.id = id;
+  obj.key = key;
 
   const dependents = [];
   // Setup the data structures
   Object.keys(helper.children).forEach((name) => {
-    const fieldKey = `${key}:${name}`;
+    const fieldKey = `${name}#${key}`;
     dependents.push(fieldKey);
     obj[name] = helper.children[name](client, fieldKey, expireAt);
   });
+
+  obj.watch = watch(client);
 
   obj.remove = remove(client, key, dependents);
   obj.update = update(client, key, attributes);
@@ -122,6 +144,31 @@ function createObject(helper, client, key, id, attributes, ttl) {
     obj.renew = renew(client, key, dependents, ttl);
   }
   return obj;
+}
+
+function getObject(helper, client, key, id) {
+  return client.transaction((transaction, resolve, reject) => {
+    let ttl = null;
+    let type = null;
+    transaction.type(key, (err, res) => {
+      type = res;
+    });
+    transaction.pttl(key, (err, res) => {
+      ttl = res;
+    });
+    transaction.hgetall(key, (err, res) => {
+      if (type !== 'hash') {
+        return resolve(null);
+      }
+
+      if (err) {
+        console.log(key, id, type);
+        return reject(err);
+      }
+
+      return resolve(createObject(helper, client, key, id, res, ttl));
+    });
+  });
 }
 
 function bindClass(helper, client) {
@@ -138,23 +185,10 @@ function bindClass(helper, client) {
     });
   });
 
-  Class.get = id => new Promise((resolve, reject) => {
+  Class.get = async (id) => {
     const key = Key(helper.getName(), id);
-    const transaction = client.multi();
-    transaction.type(key);
-    transaction.hgetall(key);
-    transaction.exec((err, res) => {
-      if (err) {
-        return reject(err);
-      }
-
-      if (res[0] !== 'hash') {
-        return resolve(null);
-      }
-
-      return resolve(createObject(helper, client, key, id, res[1], helper.ttl));
-    });
-  });
+    return getObject(helper, client, key, id);
+  };
 
   Class.create = async (id, attributes) => {
     const key = Key(helper.getName(), id);
@@ -163,72 +197,60 @@ function bindClass(helper, client) {
     }
 
     const obj = createObject(helper, client, key, id, attributes, helper.ttl);
-    return new Promise((resolve, reject) => {
-      const transaction = client.multi();
-      transaction.hmset(key, attributes);
-      if (helper.ttl) {
-        transaction.pexpire(key, helper.ttl);
-      }
-
-      transaction.exec((err) => {
+    return client.transaction((transaction, resolve, reject) => {
+      transaction.hmset(key, attributes, (err) => {
         if (err) {
           return reject(err);
         }
 
         return resolve(obj);
       });
+
+      if (helper.ttl) {
+        transaction.pexpire(key, helper.ttl);
+      }
     });
   };
 
-  Class.validate = (id) => {
+  Class.validate = async (id) => {
     const key = Key(helper.getName(), id);
-    const transaction = client.multi();
-    transaction.type(key);
-    transaction.pttl(key);
-    transaction.hgetall(key);
+    const obj = await getObject(helper, client, key, id);
+    if (obj === null) {
+      throw new Error(`${key} not found (Doesn't exist or is not a hash)`);
+    }
 
-    return new Promise((resolve, reject) => {
-      transaction.exec((err, res) => {
-        if (err) {
-          return reject(err);
-        }
-
-        if (res[0] !== 'hash') {
-          return reject(new Error(`${key} is ${res[0]} (Doesn't exist or is not a hash)`));
-        }
-
-        if (res[2] instanceof Error) {
-          return reject(res[2]);
-        }
-
-        return resolve(createObject(helper, client, key, id, res[2], res[1]));
-      });
-    });
+    return obj;
   };
 
-  Class.getAll = ids => new Promise((resolve, reject) => {
-    const keys = ids.map(id => Key(helper.getName(), id));
-    const transaction = client.multi();
-    keys.forEach((key) => {
-      transaction.pttl(key);
-      transaction.hgetall(key);
-    });
+  Class.iterator = () => {
+    const pattern = Key(helper.getName(), '*');
+    const extractId = Id(helper.getName());
 
-    transaction.exec((err, res) => {
-      if (err) {
-        return reject(err);
-      }
+    return Iterator(client, pattern, extractId, Class.get);
+  };
 
-      const errs = res.filter(r => r instanceof Error);
-      if (errs.length > 0) {
-        return reject(errs[0]);
-      }
+  Class.getAll = ids => client.transaction((transaction, resolve, reject) => {
+    Promise.all(ids.map(id => new Promise((iResolve, iReject) => {
+      const key = Key(helper.getName(), id);
+      let ttl = null;
+      transaction.pttl(key, (err, res) => {
+        if (!err) {
+          ttl = res;
+        }
+      });
 
-      return resolve(keys.map((key, idx) => {
-        const expireAt = res[idx * 2];
-        const attributes = res[(idx * 2) + 1];
-        return createObject(helper, client, key, ids[idx], attributes, expireAt);
-      }));
+
+      transaction.hgetall(key, (err, res) => {
+        if (err) {
+          return iReject(err);
+        }
+
+        iResolve(createObject(helper, client, key, id, res, ttl));
+      });
+    }))).catch((err) => {
+      reject(err);
+    }).then((res) => {
+      resolve(res);
     });
   });
 
@@ -259,6 +281,38 @@ Redis.bind = (def) => {
 
   // get the redis client
   const client = redis.createClient(Redis.config);
+
+  let transaction = null;
+  let promises = null;
+  let counter = 0;
+  client.transaction = scope => new Promise((resolve, reject) => {
+    if (counter === 0) {
+      transaction = client.multi();
+      promises = [];
+    }
+
+    promises.push({ resolve, reject });
+    counter += 1;
+    Promise.resolve(scope(transaction, resolve, reject)).then(() => {
+      counter -= 1;
+      if (counter === 0) {
+        const tPromises = promises;
+        transaction.exec((err, res) => {
+          if (err) {
+            tPromises.forEach(p => p.reject(err));
+          }
+          // res is supposed to be an array, returns null in case of
+          // error (WATCH particularly)
+          if (res === null) {
+            tPromises.forEach(p => p.resolve(res));
+          }
+        });
+        transaction = null;
+        promises = null;
+      }
+    });
+  });
+
   const res = {
     // Method to quit the binding (while closing application)
     quit: () => client.quit(),
