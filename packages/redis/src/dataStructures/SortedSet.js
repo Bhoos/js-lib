@@ -38,22 +38,27 @@ export default function SortedSet(client, key, expireAt) {
   return {
     key,
 
-    add: (item, score) => new Promise((resolve, reject) => {
-      const transaction = client.multi();
-      transaction.zcard(key);
-      transaction.zadd(key, score, item);
-      if (expireAt) {
-        transaction.pexpireat(key, expireAt);
-      }
-
-      transaction.exec((err, res) => {
+    add: (item, score) => client.transaction((transaction, resolve, reject) => {
+      let previousLength = NaN;
+      transaction.zcard(key, (err, res) => {
         if (err) {
           return reject(err);
         }
 
-        // Return the total number of items in the set
-        return resolve(res[0] + res[1]);
+        previousLength = res;
       });
+
+      transaction.zadd(key, score, item, (err, res) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(res + previousLength);
+        }
+      });
+
+      if (expireAt) {
+        transaction.pexpireat(key, expireAt);
+      }
     }),
 
     size: () => new Promise((resolve, reject) => {
@@ -66,8 +71,8 @@ export default function SortedSet(client, key, expireAt) {
       });
     }),
 
-    remove: item => new Promise((resolve, reject) => {
-      client.zrem(key, item, (err, res) => {
+    remove: item => client.transaction((transaction, resolve, reject) => {
+      transaction.zrem(key, item, (err, res) => {
         if (err) {
           return reject(err);
         }

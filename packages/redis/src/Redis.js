@@ -100,6 +100,22 @@ function exists(client, key) {
   });
 }
 
+function watch(client) {
+  return (keyProvider, watcher) => new Promise((resolve, reject) => {
+    const key = keyProvider.key;
+    client.watch(key, (err) => {
+      if (err) {
+        return reject(err);
+      }
+
+      // TODO: Do not perform a watch if already within a transaction
+
+      // Watch was successful, time to run the transaction
+      return resolve(client.transaction(watcher));
+    });
+  });
+}
+
 function createObject(helper, client, key, id, attributes, ttl) {
   const expireAt = ttl > 0 ? (Date.now() + ttl) : 0;
   const obj = new helper.Class(id, attributes);
@@ -117,16 +133,7 @@ function createObject(helper, client, key, id, attributes, ttl) {
     obj[name] = helper.children[name](client, fieldKey, expireAt);
   });
 
-  obj.watch = (dataStructure = null) => new Promise((resolve, reject) => {
-    const keyToWatch = dataStructure === null ? this.key : dataStructure.key;
-    client.watch(keyToWatch, (err, res) => {
-      if (err) {
-        return reject(err);
-      }
-
-      return resolve(res);
-    });
-  });
+  obj.watch = watch(client);
 
   obj.remove = remove(client, key, dependents);
   obj.update = update(client, key, attributes);
@@ -276,6 +283,38 @@ Redis.bind = (def) => {
 
   // get the redis client
   const client = redis.createClient(Redis.config);
+
+  let transaction = null;
+  let promises = null;
+  let counter = 0;
+  client.transaction = scope => new Promise((resolve, reject) => {
+    if (counter === 0) {
+      transaction = client.multi();
+      promises = [];
+    }
+
+    promises.push({ resolve, reject });
+    counter += 1;
+    Promise.resolve(scope(transaction, resolve, reject)).then(() => {
+      counter -= 1;
+      if (counter === 0) {
+        const tPromises = promises;
+        transaction.exec((err, res) => {
+          if (err) {
+            tPromises.forEach(p => p.reject(err));
+          }
+          // res is supposed to be an array, returns null in case of
+          // error (WATCH particularly)
+          if (res === null) {
+            tPromises.forEach(p => p.resolve(res));
+          }
+        });
+        transaction = null;
+        promises = null;
+      }
+    });
+  });
+
   const res = {
     // Method to quit the binding (while closing application)
     quit: () => client.quit(),
