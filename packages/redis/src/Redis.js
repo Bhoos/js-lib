@@ -35,18 +35,20 @@ const update = (client, key, attributes) => () => new Promise((resolve, reject) 
   });
 });
 
-const remove = (client, key, dependents) => () => new Promise((resolve, reject) => {
-  const transaction = client.multi();
-  transaction.del(key);
-  dependents.forEach(d => transaction.del(d));
-  transaction.exec((err) => {
-    if (err) {
-      return reject(err);
-    }
+const remove = (client, key, dependents) => () => client.transaction(
+  (transaction, resolve, reject) => {
+    // Remove all the dependent structures
+    dependents.forEach(d => transaction.del(d));
 
-    return resolve(true);
+    // Remove the main key
+    transaction.del(key, (err) => {
+      if (err) {
+        return reject(err);
+      }
+
+      return resolve(true);
+    });
   });
-});
 
 const increase = (client, key, attributes) => (field, increment = 1) => new Promise(
   (resolve, reject) => {
@@ -75,18 +77,17 @@ const decrease = (client, key, attributes) => (field, increment = 1) => new Prom
   });
 
 // renews the TTL for record and all its dependents
-const renew = (client, key, dependents, ttl) => () => new Promise((resolve, reject) => {
-  const transaction = client.multi();
-  transaction.pexpire(key, ttl);
-  dependents.forEach(d => transaction.pexpire(d, ttl));
-  transaction.exec((err) => {
-    if (err) {
-      return reject(err);
-    }
+const renew = (client, key, dependents, ttl) => () => client.transaction(
+  (transaction, resolve, reject) => {
+    dependents.forEach(d => transaction.pexpire(d, ttl));
+    transaction.pexpire(key, ttl, (err) => {
+      if (err) {
+        return reject(err);
+      }
 
-    return resolve(true);
+      return resolve(true);
+    });
   });
-});
 
 function exists(client, key) {
   return new Promise((resolve) => {
@@ -146,26 +147,26 @@ function createObject(helper, client, key, id, attributes, ttl) {
 }
 
 function getObject(helper, client, key, id) {
-  const transaction = client.multi();
-  transaction.type(key);
-  transaction.pttl(key);
-  transaction.hgetall(key);
-
-  return new Promise((resolve, reject) => {
-    transaction.exec((err, res) => {
-      if (err) {
-        return reject(err);
-      }
-
-      if (res[0] !== 'hash') {
+  return client.transaction((transaction, resolve, reject) => {
+    let ttl = null;
+    let type = null;
+    transaction.type(key, (err, res) => {
+      type = res;
+    });
+    transaction.pttl(key, (err, res) => {
+      ttl = res;
+    });
+    transaction.hgetall(key, (err, res) => {
+      if (type !== 'hash') {
         return resolve(null);
       }
 
-      if (res[2] instanceof Error) {
-        return reject(res[2]);
+      if (err) {
+        console.log(key, id, type);
+        return reject(err);
       }
 
-      return resolve(createObject(helper, client, key, id, res[2], res[1]));
+      return resolve(createObject(helper, client, key, id, res, ttl));
     });
   });
 }
@@ -196,20 +197,18 @@ function bindClass(helper, client) {
     }
 
     const obj = createObject(helper, client, key, id, attributes, helper.ttl);
-    return new Promise((resolve, reject) => {
-      const transaction = client.multi();
-      transaction.hmset(key, attributes);
-      if (helper.ttl) {
-        transaction.pexpire(key, helper.ttl);
-      }
-
-      transaction.exec((err) => {
+    return client.transaction((transaction, resolve, reject) => {
+      transaction.hmset(key, attributes, (err) => {
         if (err) {
           return reject(err);
         }
 
         return resolve(obj);
       });
+
+      if (helper.ttl) {
+        transaction.pexpire(key, helper.ttl);
+      }
     });
   };
 
@@ -230,29 +229,28 @@ function bindClass(helper, client) {
     return Iterator(client, pattern, extractId, Class.get);
   };
 
-  Class.getAll = ids => new Promise((resolve, reject) => {
-    const keys = ids.map(id => Key(helper.getName(), id));
-    const transaction = client.multi();
-    keys.forEach((key) => {
-      transaction.pttl(key);
-      transaction.hgetall(key);
-    });
+  Class.getAll = ids => client.transaction((transaction, resolve, reject) => {
+    Promise.all(ids.map(id => new Promise((iResolve, iReject) => {
+      const key = Key(helper.getName(), id);
+      let ttl = null;
+      transaction.pttl(key, (err, res) => {
+        if (!err) {
+          ttl = res;
+        }
+      });
 
-    transaction.exec((err, res) => {
-      if (err) {
-        return reject(err);
-      }
 
-      const errs = res.filter(r => r instanceof Error);
-      if (errs.length > 0) {
-        return reject(errs[0]);
-      }
+      transaction.hgetall(key, (err, res) => {
+        if (err) {
+          return iReject(err);
+        }
 
-      return resolve(keys.map((key, idx) => {
-        const expireAt = res[idx * 2];
-        const attributes = res[(idx * 2) + 1];
-        return createObject(helper, client, key, ids[idx], attributes, expireAt);
-      }));
+        iResolve(createObject(helper, client, key, id, res, ttl));
+      });
+    }))).catch((err) => {
+      reject(err);
+    }).then((res) => {
+      resolve(res);
     });
   });
 

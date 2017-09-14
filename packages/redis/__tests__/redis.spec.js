@@ -73,7 +73,7 @@ test('Check Redis get', async () => {
     name: 'Test',
   });
 
-  expect(SimpleCache.get('invalid')).resolves.toEqual(null);
+  expect(await SimpleCache.get('invalid')).toEqual(null);
   const t = await SimpleCache.get('t');
   expect(t.toJSON()).toMatchObject({
     id: 't',
@@ -133,6 +133,8 @@ test('Check Redis basic functions', async () => {
     name: 'Changed Name',
     eman: 'Reverse name',
   });
+  expect(await obj.remove()).toBe(true);
+
 });
 
 test('Check Redis list', async () => {
