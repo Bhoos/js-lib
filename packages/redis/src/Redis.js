@@ -148,32 +148,36 @@ function createObject(helper, client, key, id, attributes, ttl) {
 }
 
 function getObject(helper, client, key, id) {
-  return client.transaction((transaction, resolve, reject) => {
-    let ttl = null;
-    let type = null;
-    transaction.type(key, (err, res) => {
-      type = res;
-    });
-    transaction.pttl(key, (err, res) => {
-      ttl = res;
-    });
-    transaction.hgetall(key, (err, res) => {
+  // TODO: Find a way to optimize this without using transactionq
+  return new Promise((resolve, reject) => {
+    client.type(key, (typeErr, type) => {
+      if (typeErr) {
+        return reject(typeErr);
+      }
       if (type !== 'hash') {
         return resolve(null);
       }
 
-      if (err) {
-        console.log(key, id, type);
-        return reject(err);
-      }
+      return client.pttl(key, (ttlErr, ttl) => {
+        if (ttlErr) {
+          return reject(ttlErr);
+        }
 
-      return resolve(createObject(helper, client, key, id, res, ttl));
+        return client.hgetall(key, (err, res) => {
+          if (err) {
+            return reject(err);
+          }
+
+          return resolve(createObject(helper, client, key, id, res, ttl));
+        });
+      });
     });
   });
 }
 
 function bindClass(helper, client) {
   const Class = helper.Class;
+  const classWatcher = watch(client);
   Class.exists = id => new Promise((resolve, reject) => {
     const key = Key(helper.getName(), id);
     client.type(key, (err, res) => {
@@ -189,6 +193,14 @@ function bindClass(helper, client) {
   Class.get = async (id) => {
     const key = Key(helper.getName(), id);
     return getObject(helper, client, key, id);
+  };
+
+  Class.watch = (keyProvider, watcher) => {
+    if (typeof keyProvider === 'string') {
+      return classWatcher({ key: Key(helper.getName(), keyProvider) }, watcher);
+    }
+
+    return classWatcher(keyProvider, watcher);
   };
 
   Class.create = async (id, attributes) => {
@@ -294,14 +306,17 @@ Redis.bind = (def) => {
 
     promises.push({ resolve, reject });
     counter += 1;
+    console.log('New transaction', counter);
     Promise.resolve(scope(transaction, resolve, reject)).then(() => {
       counter -= 1;
+      console.log('Transaction resolved', counter);
       if (counter === 0) {
         const tPromises = promises;
         transaction.exec((err, res) => {
           if (err) {
             tPromises.forEach(p => p.reject(err));
           }
+          console.log('Transaction res is', res);
           // res is supposed to be an array, returns null in case of
           // error (WATCH particularly)
           if (res === null) {
