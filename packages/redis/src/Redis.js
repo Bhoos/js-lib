@@ -25,15 +25,16 @@ Redis.config = {
   port: 6379,
 };
 
-const update = (client, key, attributes) => () => new Promise((resolve, reject) => {
-  client.hmset(key, attributes, (err) => {
-    if (err) {
-      return reject(err);
-    }
+const update = (client, key, attributes) => () => client.transaction(
+  (transaction, resolve, reject) => {
+    transaction.hmset(key, attributes, (err) => {
+      if (err) {
+        return reject(err);
+      }
 
-    return resolve(true);
+      return resolve(true);
+    });
   });
-});
 
 const remove = (client, key, dependents) => () => client.transaction(
   (transaction, resolve, reject) => {
