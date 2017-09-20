@@ -36,7 +36,7 @@ const update = (client, key, attributes) => () => client.transaction(
 
       return resolve(true);
     });
-  });
+  }, 'update');
 
 const remove = (client, key, dependents) => () => client.transaction(
   (transaction, resolve, reject) => {
@@ -51,8 +51,9 @@ const remove = (client, key, dependents) => () => client.transaction(
 
       return resolve(true);
     });
-  });
+  }, 'remove');
 
+// TODO: Should be transaction
 const increase = (client, key, attributes) => (field, increment = 1) => new Promise(
   (resolve, reject) => {
     client.hincrby(key, field, increment, (err, res) => {
@@ -90,7 +91,7 @@ const renew = (client, key, dependents, ttl) => () => client.transaction(
 
       return resolve(true);
     });
-  });
+  }, 'renew');
 
 function exists(client, key) {
   return new Promise((resolve) => {
@@ -115,7 +116,9 @@ function watch(client) {
       // TODO: Do not perform a watch if already within a transaction
 
       // Watch was successful, time to run the transaction
-      return resolve(client.transaction(watcher));
+      client.transaction(() => watcher(resolve), 'watch').catch((tErr) => {
+        reject(tErr);
+      });
     });
   });
 }
@@ -224,8 +227,7 @@ function bindClass(helper, client) {
       if (helper.ttl) {
         transaction.pexpire(key, helper.ttl);
       }
-    });
-  };
+    }, 'create');
 
   Class.validate = async (id) => {
     const key = Key(helper.getName(), id);
@@ -268,6 +270,7 @@ function bindClass(helper, client) {
       resolve(res);
     });
   });
+  }, 'getAll');
 
   return Class;
 }

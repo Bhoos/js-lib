@@ -18,7 +18,7 @@ export default function (client, key, expireAt) {
       if (expireAt) {
         transaction.pexpireat(key, expireAt);
       }
-    }),
+    }, 'Set::add'),
 
     size: () => new Promise((resolve, reject) => {
       client.scard(key, (err, res) => {
@@ -38,7 +38,7 @@ export default function (client, key, expireAt) {
 
         return resolve(res);
       });
-    }),
+    }, 'Set::remove'),
 
     contains: item => new Promise((resolve, reject) => {
       client.sismember(key, item, (err, res) => {

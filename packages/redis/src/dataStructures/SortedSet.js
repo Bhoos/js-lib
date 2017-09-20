@@ -59,7 +59,7 @@ export default function SortedSet(client, key, expireAt) {
       if (expireAt) {
         transaction.pexpireat(key, expireAt);
       }
-    }),
+    }, 'SortedSet::add'),
 
     size: () => new Promise((resolve, reject) => {
       client.zcard(key, (err, res) => {
@@ -79,7 +79,7 @@ export default function SortedSet(client, key, expireAt) {
 
         return resolve(res);
       });
-    }),
+    }, 'SortedSet::remove'),
 
     contains: item => new Promise((resolve, reject) => {
       client.zscore(key, item, (err, res) => {
