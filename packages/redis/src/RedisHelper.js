@@ -1,4 +1,4 @@
-import { List, Map, SortedSet, Set } from './dataStructures';
+import { Basic, List, Map, SortedSet, Set } from './dataStructures';
 import Static from './Static';
 
 class RedisHelper {
@@ -50,7 +50,27 @@ class RedisHelper {
   }
 
   Static(name) {
-    this.statics[name] = Static;
+    this.statics[name] = Static(Basic);
+    return this;
+  }
+
+  StaticSet(name) {
+    this.statics[name] = Static(Set);
+    return this;
+  }
+
+  StaticMap(name) {
+    this.statics[name] = Static(Map);
+    return this;
+  }
+
+  StaticList(name) {
+    this.statics[name] = Static(List);
+    return this;
+  }
+
+  StaticSortedSet(name) {
+    this.statics[name] = Static(SortedSet);
     return this;
   }
 

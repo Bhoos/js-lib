@@ -1,5 +1,4 @@
-export default function Static(client, className, name) {
-  const key = `${className}::${name}`;
+export default function (client, key, expireAt) {
   return {
     key,
 
@@ -23,6 +22,22 @@ export default function Static(client, className, name) {
           }
 
           return resolve(value);
+        });
+
+        if (expireAt) {
+          transaction.pexpireat(key, expireAt);
+        }
+      });
+    },
+
+    clear() {
+      return client.transaction((transaction, resolve, reject) => {
+        transaction.del(key, (err) => {
+          if (err) {
+            return reject(err);
+          }
+
+          return resolve(true);
         });
       });
     },
