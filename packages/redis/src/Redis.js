@@ -208,14 +208,15 @@ function bindClass(helper, client) {
     return classWatcher(keyProvider, watcher);
   };
 
-  Class.create = async (id, attributes) => {
-    const key = Key(helper.getName(), id);
-    if (await exists(client, key)) {
-      throw new Error(`Record already exists ${key}`);
-    }
+  Class.create = async (id, attributes) => client.transaction(
+    async (transaction, resolve, reject) => {
+      const key = Key(helper.getName(), id);
+      if (await exists(client, key)) {
+        reject(new Error(`Record already exists ${key}`));
+        return;
+      }
 
     const obj = createObject(helper, client, key, id, attributes, helper.ttl);
-    return client.transaction((transaction, resolve, reject) => {
       transaction.hmset(key, attributes, (err) => {
         if (err) {
           return reject(err);
