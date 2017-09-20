@@ -1,9 +1,11 @@
 import { List, Map, SortedSet, Set } from './dataStructures';
+import Static from './Static';
 
 class RedisHelper {
   constructor(Class) {
     this.Class = Class;
     this.children = {};
+    this.statics = {};
   }
 
   addChildren(name, method) {
@@ -44,6 +46,11 @@ class RedisHelper {
 
   Set(name) {
     this.addChildren(name, Set);
+    return this;
+  }
+
+  Static(name) {
+    this.statics[name] = Static;
     return this;
   }
 

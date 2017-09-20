@@ -53,13 +53,15 @@ export default function transactionCreator(client) {
       if (counter === 0) {
         const temp = transactions;
         if (this.error) {
-          transaction.discard(() => {
-            temp.forEach(t => t.finalize());
+          transaction.discard();
+          temp.forEach((t) => {
+            t.reject(this.error);
+            t.finalize();
           });
         } else {
           transaction.exec((err, res) => {
             // console.log('Transaction res', res);
-            // Special case, result could be null
+            // Special case, result could be null when 'watch' is disturbed
             if (res === null) {
               temp.forEach((t) => {
                 t.resolve(null);

@@ -17,6 +17,8 @@ class CacheWithSortedSet extends Redis {}
 
 class CacheWithAll extends Redis {}
 
+class CacheWithStatic extends Redis {}
+
 let Cache = null;
 let server = null;
 let direct = null;
@@ -36,6 +38,7 @@ beforeAll(() => new Promise((resolve) => {
         cacheWithSortedSet: Redis.$(CacheWithSortedSet).SortedSet('sset'),
         cacheWithMap: Redis.$(CacheWithMap).Map('map'),
         cacheWithAll: Redis.$(CacheWithAll).List('list').SortedSet('sset').Set('set').Map('map').Map('map2').TTL(1000),
+        cacheWithState: Redis.$(CacheWithStatic).Static('token'),
       });
       Cache.onConnect = () => {
         resolve();
@@ -340,6 +343,17 @@ test('Check watch failure', async () => {
   expect(await obj.list.size()).toBe(listSizeBeforeWatch + 1);
 });
 
+test('Check static values', async () => {
+  const v = await Cache.CacheWithStatic.token.get();
+  expect(v).toBe(null);
+  await Cache.CacheWithStatic.token.set('something');
+  expect(await Cache.CacheWithStatic.token.get()).toBe('something');
+  await Cache.CacheWithStatic.token.set('10');
+  expect(await Cache.CacheWithStatic.token.increase()).toBe(11);
+  expect(await Cache.CacheWithStatic.token.increase(3)).toBe(14);
+  expect(await Cache.CacheWithStatic.token.decrease()).toBe(13);
+  expect(await Cache.CacheWithStatic.token.decrease(2)).toBe(11);
+});
 // test('Check watch failture', async () => {
 //   const obj = await Cache.CacheWithAll.create('w1', { n: 'watch' });
 
