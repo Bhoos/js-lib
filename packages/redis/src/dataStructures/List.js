@@ -15,7 +15,7 @@ export default function List(client, key, expireAt) {
         if (expireAt > 0) {
           transaction.pexpireat(key, expireAt);
         }
-      });
+      }, 'List::add');
     },
 
     size() {
@@ -63,7 +63,7 @@ export default function List(client, key, expireAt) {
 
           return resolve(res);
         });
-      });
+      }, 'List::set');
     },
   };
 }

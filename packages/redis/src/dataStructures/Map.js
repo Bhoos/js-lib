@@ -14,7 +14,7 @@ export default function (client, key, expireAt) {
       if (expireAt) {
         transaction.pexpireat(key, expireAt);
       }
-    }),
+    }, 'Map::set'),
 
     get: field => new Promise((resolve, reject) => {
       client.hget(key, field, (err, res) => {
@@ -76,14 +76,7 @@ export default function (client, key, expireAt) {
       if (expireAt) {
         transaction.pexpireat(key, expireAt);
       }
-      transaction.exec((err) => {
-        if (err) {
-          return reject(err);
-        }
-
-        return resolve(obj);
-      });
-    }),
+    }, 'Map::setAll'),
 
     remove: field => client.transaction((transaction, resolve, reject) => {
       transaction.hdel(key, field, (err, res) => {
@@ -93,7 +86,7 @@ export default function (client, key, expireAt) {
 
         return resolve(res);
       });
-    }),
+    }, 'Map::remove'),
 
     increase: (field, increment = 1) => client.transaction((transaction, resolve, reject) => {
       transaction.hincrby(key, field, increment, (err, res) => {
@@ -103,7 +96,7 @@ export default function (client, key, expireAt) {
 
         return resolve(res);
       });
-    }),
+    }, 'Map::increase'),
 
     decrease: (field, factor = 1) => client.transaction((transaction, resolve, reject) => {
       transaction.hincrby(key, field, -factor, (err, res) => {
@@ -113,6 +106,6 @@ export default function (client, key, expireAt) {
 
         return resolve(res);
       });
-    }),
+    }, 'Map::decrease'),
   };
 }
