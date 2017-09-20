@@ -38,7 +38,7 @@ beforeAll(() => new Promise((resolve) => {
         cacheWithSortedSet: Redis.$(CacheWithSortedSet).SortedSet('sset'),
         cacheWithMap: Redis.$(CacheWithMap).Map('map'),
         cacheWithAll: Redis.$(CacheWithAll).List('list').SortedSet('sset').Set('set').Map('map').Map('map2').TTL(1000),
-        cacheWithState: Redis.$(CacheWithStatic).Static('token'),
+        cacheWithState: Redis.$(CacheWithStatic).Static('token').StaticMap('map'),
       });
       Cache.onConnect = () => {
         resolve();
@@ -353,6 +353,16 @@ test('Check static values', async () => {
   expect(await Cache.CacheWithStatic.token.increase(3)).toBe(14);
   expect(await Cache.CacheWithStatic.token.decrease()).toBe(13);
   expect(await Cache.CacheWithStatic.token.decrease(2)).toBe(11);
+});
+
+test('Check static with map', async () => {
+  expect(await Cache.CacheWithStatic.map.getAll()).toBe(null);
+  await Cache.CacheWithStatic.map.set('one', 1);
+  await Cache.CacheWithStatic.map.set('two', 2);
+  expect(await Cache.CacheWithStatic.map.getAll()).toMatchObject({
+    one: '1',
+    two: '2',
+  });
 });
 // test('Check watch failture', async () => {
 //   const obj = await Cache.CacheWithAll.create('w1', { n: 'watch' });
