@@ -184,6 +184,11 @@ function getObject(helper, client, key, id) {
 function bindClass(helper, client) {
   const Class = helper.Class;
   const classWatcher = watch(client);
+
+  Object.keys(helper.statics).forEach((name) => {
+    Class[name] = helper.statics[name](client, helper.getName(), name);
+  });
+
   Class.exists = id => new Promise((resolve, reject) => {
     const key = Key(helper.getName(), id);
     client.type(key, (err, res) => {
