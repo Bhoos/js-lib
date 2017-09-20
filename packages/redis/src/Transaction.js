@@ -61,7 +61,7 @@ export default function transactionCreator(client) {
         } else {
           transaction.exec((err, res) => {
             // console.log('Transaction res', res);
-            // Special case, result could be null
+            // Special case, result could be null when 'watch' is disturbed
             if (res === null) {
               temp.forEach((t) => {
                 t.resolve(null);
