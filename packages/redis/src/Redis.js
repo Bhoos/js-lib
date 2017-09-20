@@ -246,8 +246,8 @@ function bindClass(helper, client) {
     return Iterator(client, pattern, extractId, Class.get);
   };
 
-  Class.getAll = ids => client.transaction((transaction, resolve, reject) => {
-    Promise.all(ids.map(id => new Promise((iResolve, iReject) => {
+  Class.getAll = ids => client.transaction((transaction, resolve) => {
+    resolve(Promise.all(ids.map(id => new Promise((iResolve, iReject) => {
       const key = Key(helper.getName(), id);
       let ttl = null;
       transaction.pttl(key, (err, res) => {
@@ -264,12 +264,7 @@ function bindClass(helper, client) {
 
         iResolve(createObject(helper, client, key, id, res, ttl));
       });
-    }))).catch((err) => {
-      reject(err);
-    }).then((res) => {
-      resolve(res);
-    });
-  });
+    }))));
   }, 'getAll');
 
   return Class;
