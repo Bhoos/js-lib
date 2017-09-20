@@ -1,6 +1,8 @@
 import RedisHelper from './RedisHelper';
 import Iterator from './Iterator';
 
+import transactionCreator from './Transaction';
+
 const redis = require('redis');
 
 const Key = (name, id) => `${name}:${id}`;
@@ -295,39 +297,7 @@ Redis.bind = (def) => {
   // get the redis client
   const client = redis.createClient(Redis.config);
 
-  let transaction = null;
-  let promises = null;
-  let counter = 0;
-  client.transaction = scope => new Promise((resolve, reject) => {
-    if (counter === 0) {
-      transaction = client.multi();
-      promises = [];
-    }
-
-    promises.push({ resolve, reject });
-    counter += 1;
-    console.log('New transaction', counter);
-    Promise.resolve(scope(transaction, resolve, reject)).then(() => {
-      counter -= 1;
-      console.log('Transaction resolved', counter);
-      if (counter === 0) {
-        const tPromises = promises;
-        transaction.exec((err, res) => {
-          if (err) {
-            tPromises.forEach(p => p.reject(err));
-          }
-          console.log('Transaction res is', res);
-          // res is supposed to be an array, returns null in case of
-          // error (WATCH particularly)
-          if (res === null) {
-            tPromises.forEach(p => p.resolve(res));
-          }
-        });
-        transaction = null;
-        promises = null;
-      }
-    });
-  });
+  client.transaction = transactionCreator(client);
 
   const res = {
     // Method to quit the binding (while closing application)
