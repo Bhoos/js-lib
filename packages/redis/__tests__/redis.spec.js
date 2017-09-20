@@ -299,6 +299,21 @@ test('Check iterator', async () => {
   expect(all.length).toBe(9);
 });
 
+test('Check watch success', async () => {
+  const obj = await Cache.CacheWithAll.create('w0', { n: 'w0' });
+  await obj.list.add('1');
+  await obj.list.add('2');
+
+  const watchRes = await obj.watch(obj.list, async (resolve) => {
+    const size = await obj.list.size();
+    expect(size).toBe(2);
+    resolve(obj.list.add('3'));
+  });
+
+  expect(watchRes).toBe(3);
+  expect(await obj.list.size()).toBe(3);
+});
+
 test('Check watch failure', async () => {
   const obj = await Cache.CacheWithAll.create('w1', { n: 'watch' });
   const listSizeBeforeWatch = await obj.list.size();
@@ -314,10 +329,11 @@ test('Check watch failure', async () => {
     });
   }
 
-  const watchRes = await obj.watch(obj.list, async () => {
+  const watchRes = await obj.watch(obj.list, async (resolve) => {
     await breakWatch();
-    expect(await obj.list.size()).toBe(listSizeBeforeWatch + 1);
-    obj.list.add('fail item');
+    const size = await obj.list.size();
+    expect(size).toBe(listSizeBeforeWatch + 1);
+    resolve(obj.list.add('fail item'));
   });
 
   expect(watchRes).toBe(null);
