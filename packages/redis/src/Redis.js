@@ -54,9 +54,9 @@ const remove = (client, key, dependents) => () => client.transaction(
   }, 'remove');
 
 // TODO: Should be transaction
-const increase = (client, key, attributes) => (field, increment = 1) => new Promise(
-  (resolve, reject) => {
-    client.hincrby(key, field, increment, (err, res) => {
+const increase = (client, key, attributes) => (field, increment = 1) => client.transaction(
+  (transaction, resolve, reject) => {
+    transaction.hincrby(key, field, increment, (err, res) => {
       if (err) {
         return reject(err);
       }
@@ -68,9 +68,9 @@ const increase = (client, key, attributes) => (field, increment = 1) => new Prom
   });
 
 // TODO: Should be transaction
-const decrease = (client, key, attributes) => (field, increment = 1) => new Promise(
-  (resolve, reject) => {
-    client.hincrby(key, field, -increment, (err, res) => {
+const decrease = (client, key, attributes) => (field, increment = 1) => client.transaction(
+  (transaction, resolve, reject) => {
+    transaction.hincrby(key, field, -increment, (err, res) => {
       if (err) {
         return reject(err);
       }
