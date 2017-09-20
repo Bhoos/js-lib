@@ -356,6 +356,7 @@ test('Check static values', async () => {
 });
 
 test('Check static with map', async () => {
+  expect(await Cache.CacheWithStatic.map.getAll()).toBe(null);
   await Cache.CacheWithStatic.map.set('one', 1);
   await Cache.CacheWithStatic.map.set('two', 2);
   expect(await Cache.CacheWithStatic.map.getAll()).toMatchObject({
