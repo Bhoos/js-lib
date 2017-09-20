@@ -1,6 +1,8 @@
 export default function Static(client, className, name) {
   const key = `${className}::${name}`;
   return {
+    key,
+
     get() {
       return new Promise((resolve, reject) => {
         client.get(key, (err, res) => {
