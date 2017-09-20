@@ -76,13 +76,6 @@ export default function (client, key, expireAt) {
       if (expireAt) {
         transaction.pexpireat(key, expireAt);
       }
-      transaction.exec((err) => {
-        if (err) {
-          return reject(err);
-        }
-
-        return resolve(obj);
-      });
     }),
 
     remove: field => client.transaction((transaction, resolve, reject) => {
