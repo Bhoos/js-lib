@@ -67,6 +67,7 @@ const increase = (client, key, attributes) => (field, increment = 1) => new Prom
     });
   });
 
+// TODO: Should be transaction
 const decrease = (client, key, attributes) => (field, increment = 1) => new Promise(
   (resolve, reject) => {
     client.hincrby(key, field, -increment, (err, res) => {
@@ -216,7 +217,7 @@ function bindClass(helper, client) {
         return;
       }
 
-    const obj = createObject(helper, client, key, id, attributes, helper.ttl);
+      const obj = createObject(helper, client, key, id, attributes, helper.ttl);
       transaction.hmset(key, attributes, (err) => {
         if (err) {
           return reject(err);
